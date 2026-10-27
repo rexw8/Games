@@ -60,7 +60,7 @@ Each game gets its own folder with its own README covering features, controls an
 
 ## How these are made
 
-These games are built by **vibe coding**: describing what I want to Claude, playing the result, and coming back with what to change.
+These games are built by **vibe coding**: describing what I want to make with Claude, playing the result, and coming back with what to change.
 
 - **Start small.** First get a playable core loop working, then add content, then systems, then polish.
 - **Playtest every change.** Most bugs and feel problems only show up once you actually play.
