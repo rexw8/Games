@@ -12,6 +12,7 @@ Every game is a **single self-contained HTML file**. No installs, no build step,
 |---|---|---|---|
 | **Rogue Dagger** | Pixel-art bullet-hell boss rush | Playable | [`Rogue Dagger/rogue-dagger.html`](Rogue%20Dagger/rogue-dagger.html) |
 | **Cozy Garden** | Cozy farming with light idle automation | Playable | [`Cozy Garden/cozy-garden.html`](Cozy%20Garden/cozy-garden.html) |
+| **Voltfront** | Grid-based mech auto-battler | Playable | [`Voltfront/voltfront.html`](Voltfront/voltfront.html) |
 | *Next game* | — | Coming soon | — |
 
 ### Rogue Dagger
@@ -21,6 +22,10 @@ Fight through three themed rushes of three bosses each, as a dagger-throwing Rog
 ### Cozy Garden
 Plant, water and harvest clay crops on a tilted toy-diorama plot, then grow it from a 3×3 patch into an automated 8×8 garden. Fill villagers' orders, chase rare golden crops, collect 12 Curios with side effects, and build sprinklers, auto-planters and tractors. A soft rain keeps the garden growing for up to 8 hours while you're away, and a daily gift rewards your visit streak.
 **Controls:** tap or click soil to plant · tap a plant to water it · tap a glowing plant to harvest.
+
+### Voltfront
+Build a squad of energy-powered mechs under a 12-power reactor, place them on a 6×8 grid, and watch the battle play out on its own. Every attack is telegraphed onto a tile before it fires, so a shove or a pull can turn an enemy's shot onto its own side. A live round-1 forecast during deployment shows exactly where everyone will move and strike. 12 mechs, 4 squad synergies, and a Clash Mini–style hangar with an Inscryption P03 machine-room look.
+**Controls:** tap cards to build your squad · tap or drag to place mechs · Engage, then watch.
 
 <!-- Copy this block for each new game:
 ### Game Name
@@ -48,6 +53,9 @@ Games/
 │   └── README.md              ← features, controls, how the code is organized
 ├── Cozy Garden/
 │   ├── cozy-garden.html       ← the whole game
+│   └── README.md
+├── Voltfront/
+│   ├── voltfront.html         ← the whole game
 │   └── README.md
 └── <Next Game>/
     ├── <next-game>.html
