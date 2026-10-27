@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>ROGUE DAGGER :: Bullet Hell</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  html, body {
+    background:#0f0f1a; width:100%; height:100%; overflow:hidden;
+    font-family: 'Courier New', monospace; touch-action:none;
+  }
+  #gameWrap {
+    display:flex; align-items:center; justify-content:center;
+    width:100vw; height:100vh; background: linear-gradient(to right, #0b2b12, #00721b);
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    background:#1a1a2e;
+    border: 4px solid #444;
+    width: 320px;
+    height: 320px;
+    width: 92vmin;
+    height: 92vmin;
+  }
+  #touchControls {
+    position:fixed; bottom:0; left:0; width:100%; height:100%;
+    pointer-events:none; z-index:10;
+  }
+  #controlBar {
+    position:absolute; left:0; right:0; bottom:0; height:150px;
+    background: #000; border-top: 3px solid #fff;
+    pointer-events:none;
+  }
+  .stickZone, .actionZone {
+    position:absolute; bottom:0; width:50%; height:50%;
+    pointer-events:auto;
+  }
+  .stickZone { left:0; }
+  .actionZone { right:0; }
+  #dashBtn {
+    position:absolute; bottom:20px; right:20px;
+    width:70px; height:70px; border-radius:50%;
+    background:rgba(255,204,0,0.25); border:3px solid #ffcc00;
+    color:#ffcc00; font-weight:bold; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:auto; z-index:20;
+  }
+  #artifactBtn {
+    position:absolute; bottom:20px; right:110px;
+    width:60px; height:60px; border-radius:50%;
+    background:rgba(153,102,255,0.25); border:3px solid #9966ff;
+    color:#9966ff; font-weight:bold; font-size:10px;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:auto; z-index:20;
+  }
+  #stickBase {
+    position:absolute; bottom:40px; left:40px;
+    width:100px; height:100px; border-radius:50%;
+    background:rgba(255,255,255,0.08); border:3px solid rgba(255,255,255,0.3);
+    pointer-events:auto; z-index:20;
+  }
+  #stickNub {
+    position:absolute; width:44px; height:44px; border-radius:50%;
+    background:rgba(255,255,255,0.4); border:2px solid rgba(255,255,255,0.6);
+    left:28px; top:28px; pointer-events:none;
+  }
+  #hint {
+    position:fixed; top:8px; left:50%; transform:translateX(-50%);
+    color:#666; font-size:11px; pointer-events:none; z-index:5;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    #touchControls { display:none; }
+  }
+  @media (hover: none) {
+    #hint { display:none; }
+  }
+  /* keep controls clear of the iPhone home indicator */
+  #controlBar { height: calc(150px + env(safe-area-inset-bottom)); }
+  #stickBase { bottom: calc(40px + env(safe-area-inset-bottom)); }
+  #dashBtn, #artifactBtn { bottom: calc(20px + env(safe-area-inset-bottom)); }
+  #controlBarRight { display:none; }
+
+  /* Landscape: game square in the middle, controls in black side panels */
+  @media (orientation: landscape) {
+    canvas {
+      width: min(92vh, calc(100vw - 340px));
+      height: min(92vh, calc(100vw - 340px));
+    }
+    #controlBar, #controlBarRight {
+      display:block; position:absolute; top:0; bottom:0; height:auto;
+      width: calc((100vw - min(92vh, calc(100vw - 340px))) / 2 - 4px);
+      background:#000; border-top:none; pointer-events:none;
+    }
+    #controlBar { left:0; border-right:3px solid #fff; }
+    #controlBarRight { right:0; left:auto; border-left:3px solid #fff; }
+    #stickBase { left: calc(30px + env(safe-area-inset-left)); bottom: calc(30px + env(safe-area-inset-bottom)); }
+    #dashBtn { right: calc(30px + env(safe-area-inset-right)); bottom: calc(30px + env(safe-area-inset-bottom)); }
+    #artifactBtn { right: calc(35px + env(safe-area-inset-right)); bottom: calc(115px + env(safe-area-inset-bottom)); }
+  }
+</style>
+</head>
+<body>
+
+<div id="gameWrap">
+  <canvas id="screen" width="256" height="256"></canvas>
+</div>
+
+<div id="touchControls">
+  <div id="controlBar"></div>
+  <div id="controlBarRight"></div>
+  <div id="stickBase"><div id="stickNub"></div></div>
+  <div id="artifactBtn">USE</div>
+  <div id="dashBtn">DASH</div>
+</div>
+<div id="hint">WASD/Arrows Move · Space Dash · E Use Artifact · Mouse Aim/Throw</div>
+<input type="file" id="musicFileInput" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg" style="position:fixed;left:-9999px;top:0;opacity:0;width:1px;height:1px;">
+
+<script>
+/* ============================================================
+   ROGUE DAGGER
+   A tiny PICO-8 styled bullet-hell boss rush
+   Written like a compact indie-lua project, ported to JS canvas
+   Structure kept "cart-like": one big update/draw loop, small
+   modules via tables (like Lua modules), fixed 128x128-esque
+   pico grid scaled to 256x256 internal resolution.
+   ============================================================ */
+
+const CANVAS = document.getElementById('screen');
+const CTX = CANVAS.getContext('2d');
+CTX.imageSmoothingEnabled = false;
+const gameWrap = document.getElementById('gameWrap');
+// Colors each rush's world backdrop using that rush's own bgColor/accentColor,
+// so no new data has to be added -- just reuses what each rush already defines.
+function updateWorldBackground(){
+  const rush = RUSHES[currentRushIndex];
+  if(rush) gameWrap.style.background = `linear-gradient(to right, ${rush.bgColor}, ${darkenHex(rush.accentColor, 0.5)})`;
+}
+function darkenHex(hex, factor){
+  const c = hex.replace('#','');
+  const r = Math.floor(parseInt(c.substring(0,2),16)*factor);
+  const g = Math.floor(parseInt(c.substring(2,4),16)*factor);
+  const b = Math.floor(parseInt(c.substring(4,6),16)*factor);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ---- PICO-8 STYLE PALETTE (the classic 16 colors) ----
+const PAL = {
+  black:  '#000000',
+  navy:   '#1D2B53',
+  purple: '#7E2553',
+  green:  '#008751',
+  brown:  '#AB5236',
+  gray:   '#5F574F',
+  ltgray: '#C2C3C7',
+  white:  '#FFF1E8',
+  red:    '#FF004D',
+  orange: '#FFA300',
+  yellow: '#FFEC27',
+  lime:   '#00E436',
+  cyan:   '#29ADFF',
+  indigo: '#83769C',
+  pink:   '#FF77A8',
+  peach:  '#FFCCAA'
+};
+
+// ---- GLOBAL TIME / MATH HELPERS (sine-driven "juice") ----
+let T = 0; // global time accumulator, frames
+const TAU = Math.PI * 2;
+function sin01(freq, phase=0){ return (Math.sin(T*freq + phase) + 1) * 0.5; }
+function wobble(amount, freq, phase=0){ return Math.sin(T*freq+phase) * amount; }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+function clamp(v,mn,mx){ return Math.max(mn, Math.min(mx,v)); }
+function rnd(a=1,b=null){ if(b===null){b=a; a=0;} return a + Math.random()*(b-a); }
+function rndi(a,b){ return Math.floor(rnd(a,b+1)); }
+function angTo(x1,y1,x2,y2){ return Math.atan2(y2-y1, x2-x1); }
+
+// ================= SCREEN SHAKE (juice) =================
+let shakeT = 0, shakeMag = 0;
+function addShake(mag, dur){ shakeMag = Math.max(shakeMag, mag); shakeT = Math.max(shakeT, dur); }
+function updateShake(){
+  if(shakeT>0){ shakeT--; } else { shakeMag *= 0.9; }
+}
+function shakeOffset(){
+  if(shakeMag < 0.1) return [0,0];
+  return [wobble(shakeMag, 3.1), wobble(shakeMag, 2.3, 1.4)];
+}
+
+// ================= PARTICLES =================
+let particles = [];
+function spawnParticle(x,y,color,spd,life,size=2){
+  const a = rnd(0,TAU);
+  particles.push({
+    x,y,color,size,
+    vx: Math.cos(a)*spd*rnd(0.4,1),
+    vy: Math.sin(a)*spd*rnd(0.4,1),
+    life, maxLife: life
+  });
+}
+function burst(x,y,color,count=10,spd=2,life=20){
+  for(let i=0;i<count;i++) spawnParticle(x,y,color,spd,life*rnd(0.6,1.2));
+}
+function updateParticles(){
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.94; p.vy *= 0.94;
+    p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+}
+function drawParticles(){
+  for(const p of particles){
+    const a = p.life/p.maxLife;
+    CTX.globalAlpha = clamp(a,0,1);
+    CTX.fillStyle = p.color;
+    const s = p.size * a;
+    CTX.fillRect(p.x-s/2, p.y-s/2, s, s);
+  }
+  CTX.globalAlpha = 1;
+}
+
+// ================= FLOATING TEXT =================
+let floatTexts = [];
+function addFloatText(x,y,text,color='#fff1e8', size=6){
+  floatTexts.push({x,y,text,color,size,life:40,maxLife:40});
+}
+function updateFloatTexts(){
+  for(let i=floatTexts.length-1;i>=0;i--){
+    const f = floatTexts[i];
+    f.y -= 0.4;
+    f.life--;
+    if(f.life<=0) floatTexts.splice(i,1);
+  }
+}
+function drawFloatTexts(){
+  CTX.textAlign='center';
+  for(const f of floatTexts){
+    CTX.globalAlpha = clamp(f.life/f.maxLife, 0, 1);
+    CTX.fillStyle = f.color;
+    CTX.font = `${f.size}px monospace`;
+    CTX.fillText(f.text, f.x, f.y);
+  }
+  CTX.globalAlpha = 1;
+  CTX.textAlign='left';
+}
+
+// ================= INPUT =================
+const Input = {
+  up:false, down:false, left:false, right:false,
+  dash:false, dashPressed:false,
+  use:false, usePressed:false,
+  mouseX:128, mouseY:128, mouseDown:false, mouseClicked:false,
+  stickX:0, stickY:0, stickActive:false
+};
+
+window.addEventListener('keydown', e=>{
+  if(['w','arrowup'].includes(e.key.toLowerCase())) Input.up = true;
+  if(['s','arrowdown'].includes(e.key.toLowerCase())) Input.down = true;
+  if(['a','arrowleft'].includes(e.key.toLowerCase())) Input.left = true;
+  if(['d','arrowright'].includes(e.key.toLowerCase())) Input.right = true;
+  if(e.key === ' '){ if(!Input.dash) Input.dashPressed = true; Input.dash = true; }
+  if(e.key.toLowerCase() === 'e'){ if(!Input.use) Input.usePressed = true; Input.use = true; }
+});
+window.addEventListener('keyup', e=>{
+  if(['w','arrowup'].includes(e.key.toLowerCase())) Input.up = false;
+  if(['s','arrowdown'].includes(e.key.toLowerCase())) Input.down = false;
+  if(['a','arrowleft'].includes(e.key.toLowerCase())) Input.left = false;
+  if(['d','arrowright'].includes(e.key.toLowerCase())) Input.right = false;
+  if(e.key === ' ') Input.dash = false;
+  if(e.key.toLowerCase() === 'e') Input.use = false;
+});
+
+function screenToCanvas(clientX, clientY){
+  const rect = CANVAS.getBoundingClientRect();
+  const scaleX = CANVAS.width / rect.width;
+  const scaleY = CANVAS.height / rect.height;
+  return [ (clientX-rect.left)*scaleX, (clientY-rect.top)*scaleY ];
+}
+CANVAS.addEventListener('mousemove', e=>{
+  const [x,y] = screenToCanvas(e.clientX, e.clientY);
+  Input.mouseX = x; Input.mouseY = y;
+});
+let lastClickTime = 0;
+// Centralizes "a click happened" so a duplicate/ghost event (e.g. the
+// browser's synthetic mousedown that can follow a real touchstart)
+// can't be counted as a second, separate click.
+function registerClick(x,y){
+  const now = performance.now();
+  if(now - lastClickTime < 200) return;
+  lastClickTime = now;
+  if(x !== undefined){ Input.mouseX = x; Input.mouseY = y; }
+  Input.mouseDown = true;
+  Input.mouseClicked = true;
+  // iOS only lets audio start inside a real tap, so unlock it here and
+  // start any music track restored from the save file.
+  try { ensureAudioCtx(); } catch(e){}
+  if(pendingMusicTrack && currentTrackId === 'off'){
+    const t = pendingMusicTrack; pendingMusicTrack = null;
+    try { playChiptune(t); } catch(e){}
+  }
+}
+// Opening a file picker only works synchronously inside an event the
+// browser counts as a user gesture. On phones that's touchEND, not
+// touchstart, and on desktop it's mousedown -- so this is called from
+// those two handlers directly, never from the game loop.
+function tryOpenMusicPicker(x,y){
+  if(gameState !== STATE.MUSIC_SELECT) return;
+  const opts = getMusicOptions();
+  const uploadIdx = opts.findIndex(o => o.id === 'upload');
+  if(uploadIdx === -1) return;
+  const r = musicOptionRect(uploadIdx);
+  if(x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h){
+    musicFileInput.value = ''; // lets the same file be picked again
+    musicFileInput.click();
+  }
+}
+CANVAS.addEventListener('mousedown', e=>{
+  registerClick(Input.mouseX, Input.mouseY);
+  tryOpenMusicPicker(Input.mouseX, Input.mouseY);
+});
+window.addEventListener('mouseup', ()=> Input.mouseDown=false);
+
+// ---- Touch controls (mobile) ----
+const stickBase = document.getElementById('stickBase');
+const stickNub = document.getElementById('stickNub');
+let stickTouchId = null;
+let stickCenter = {x:0,y:0};
+
+function stickStart(x,y){
+  const rect = stickBase.getBoundingClientRect();
+  stickCenter.x = rect.left + rect.width/2;
+  stickCenter.y = rect.top + rect.height/2;
+  Input.stickActive = true;
+}
+function stickMove(x,y){
+  let dx = x - stickCenter.x;
+  let dy = y - stickCenter.y;
+  const maxR = 40;
+  const d = Math.hypot(dx,dy);
+  if(d > maxR){ dx = dx/d*maxR; dy = dy/d*maxR; }
+  stickNub.style.left = (28+dx)+'px';
+  stickNub.style.top = (28+dy)+'px';
+  Input.stickX = dx/maxR;
+  Input.stickY = dy/maxR;
+}
+function stickEnd(){
+  Input.stickActive = false;
+  Input.stickX = 0; Input.stickY = 0;
+  stickNub.style.left = '28px'; stickNub.style.top = '28px';
+}
+stickBase.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  stickTouchId = t.identifier;
+  stickStart(t.clientX, t.clientY);
+  stickMove(t.clientX, t.clientY);
+}, {passive:false});
+stickBase.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier === stickTouchId) stickMove(t.clientX, t.clientY);
+  }
+}, {passive:false});
+stickBase.addEventListener('touchend', e=>{
+  e.preventDefault();
+  stickEnd();
+}, {passive:false});
+
+const dashBtn = document.getElementById('dashBtn');
+dashBtn.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  if(!Input.dash) Input.dashPressed = true;
+  Input.dash = true;
+}, {passive:false});
+dashBtn.addEventListener('touchend', e=>{
+  e.preventDefault();
+  Input.dash = false;
+}, {passive:false});
+
+const artifactBtn = document.getElementById('artifactBtn');
+artifactBtn.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  if(!Input.use) Input.usePressed = true;
+  Input.use = true;
+}, {passive:false});
+artifactBtn.addEventListener('touchend', e=>{
+  e.preventDefault();
+  Input.use = false;
+}, {passive:false});
+
+// Touch aiming/throwing on right half (actionZone covers whole right, but let's just use whole canvas taps not covered by stick)
+CANVAS.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    const [x,y] = screenToCanvas(t.clientX, t.clientY);
+    registerClick(x,y);
+  }
+}, {passive:false});
+CANVAS.addEventListener('touchmove', e=>{
+  for(const t of e.changedTouches){
+    const [x,y] = screenToCanvas(t.clientX, t.clientY);
+    Input.mouseX = x; Input.mouseY = y;
+  }
+}, {passive:true});
+CANVAS.addEventListener('touchend', e=>{
+  Input.mouseDown = false;
+  try { ensureAudioCtx(); } catch(err){} // iOS unlocks audio on touchend
+  const t = e.changedTouches[0];
+  if(t){
+    const [x,y] = screenToCanvas(t.clientX, t.clientY);
+    tryOpenMusicPicker(x,y);
+  }
+}, {passive:true});
+
+function endFrameInput(){
+  Input.dashPressed = false;
+  Input.usePressed = false;
+  Input.mouseClicked = false;
+}
+
+// ================= GAME STATE MACHINE =================
+const STATE = {
+  INTRO: 'intro',
+  MENU: 'menu',
+  SETTINGS: 'settings',
+  RUSH_SELECT: 'rush_select',
+  MUSIC_SELECT: 'music_select',
+  CHARACTER_SELECT: 'character_select',
+  ARTIFACT_SELECT: 'artifact_select',
+  PLAYING: 'playing',
+  BOSS_INTRO: 'boss_intro',
+  PHASE_TRANSITION: 'phase_transition',
+  VICTORY: 'victory',
+  GAMEOVER: 'gameover',
+  RUSH_COMPLETE: 'rush_complete'
+};
+let gameState = STATE.INTRO;
+let menuBlink = 0;
+let stateTimer = 0;
+
+// Opening cutscene: "DAGGERSEDGE" sits joined, a dagger drops from
+// above on click and splits the word in half, then CLICK START blinks.
+let introPhase = 'waiting'; // waiting -> falling -> split -> ready
+let introDaggerY = -30;
+let introSplitAmount = 0;
+
+// ================= DIFFICULTY / SETTINGS =================
+const DIFFICULTY = {
+  easy:     { label:'EASY',     desc:'Slower bullets. Checkpoint after each boss. 3 lives.',        color:PAL.lime,   bulletSpeedMult:0.65, bossHpMult:1.0, playerMaxHp:6, checkpoints:true,  lives:3 },
+  standard: { label:'STANDARD', desc:'The developer-intended experience. 3 lives, no checkpoints.', color:PAL.white,  bulletSpeedMult:1.0,  bossHpMult:1.0, playerMaxHp:6, checkpoints:false, lives:3 },
+  hard:     { label:'HARD',     desc:'Faster bullets, tougher bosses, less HP. One life, no retries.', color:PAL.red,    bulletSpeedMult:1.35, bossHpMult:1.3, playerMaxHp:4, checkpoints:false, lives:1 }
+};
+const DIFFICULTY_ORDER = ['easy','standard','hard'];
+let currentDifficulty = 'standard';
+let selectedRushIndex = 0; // which rush the player chose to start from
+
+// ================= CHARACTERS / WEAPONS =================
+const CHARACTERS = {
+  rogue:  { name:'ROGUE',  desc:'Auto-throws daggers while held down. Fast, steady damage.', color:PAL.ltgray },
+  wizard: { name:'WIZARD', desc:'Hold to charge a blast, release to fire. Slow but powerful.', color:PAL.indigo }
+};
+let selectedCharacter = 'rogue';
+const WIZARD_MAX_CHARGE_FRAMES = 72; // ~1.2s at 60fps
+
+// ================= MUSIC =================
+// A few original chiptune loops generated with the Web Audio API
+// (fits the PICO-8 look and avoids any copyright concerns), plus
+// support for the player uploading their own audio file to loop.
+const MUSIC_TRACKS = {
+  adventure: { name:'ADVENTURE THEME', wave:'square', notes:[
+    {f:392,d:0.22},{f:440,d:0.22},{f:494,d:0.22},{f:523,d:0.44},
+    {f:494,d:0.22},{f:440,d:0.22},{f:392,d:0.44},{f:330,d:0.44}
+  ]},
+  mystery: { name:'MYSTERY THEME', wave:'triangle', notes:[
+    {f:293,d:0.3},{f:311,d:0.3},{f:349,d:0.3},{f:311,d:0.3},
+    {f:293,d:0.3},{f:233,d:0.3},{f:261,d:0.6}
+  ]},
+  battle: { name:'BATTLE THEME', wave:'sawtooth', notes:[
+    {f:220,d:0.15},{f:220,d:0.15},{f:277,d:0.15},{f:220,d:0.15},
+    {f:330,d:0.15},{f:277,d:0.15},{f:220,d:0.15},{f:196,d:0.3}
+  ]}
+};
+let audioCtx = null;
+let musicGainNode = null;
+let currentTrackId = 'off'; // 'off' | a MUSIC_TRACKS key | 'custom'
+let chiptuneTimeoutId = null;
+let chiptuneNoteIndex = 0;
+let customBuffer = null;   // decoded user song
+let customSource = null;   // currently playing loop of it
+let customGainNode = null;
+let customFileName = null;
+let musicStatus = '';      // shown on the music screen (loading / error)
+
+function ensureAudioCtx(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGainNode = audioCtx.createGain();
+    musicGainNode.gain.value = 0.18;
+    musicGainNode.connect(audioCtx.destination);
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function stopMusic(){
+  if(chiptuneTimeoutId){ clearTimeout(chiptuneTimeoutId); chiptuneTimeoutId = null; }
+  if(customSource){ try { customSource.stop(); } catch(e){} customSource = null; }
+}
+
+function playChiptune(trackId){
+  stopMusic();
+  ensureAudioCtx();
+  currentTrackId = trackId;
+  chiptuneNoteIndex = 0;
+  const track = MUSIC_TRACKS[trackId];
+  function playNextNote(){
+    if(currentTrackId !== trackId) return; // selection changed mid-chain; stop this loop
+    const note = track.notes[chiptuneNoteIndex % track.notes.length];
+    chiptuneNoteIndex++;
+    const osc = audioCtx.createOscillator();
+    const noteGain = audioCtx.createGain();
+    osc.type = track.wave;
+    osc.frequency.value = note.f;
+    noteGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    noteGain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime+0.02);
+    noteGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime+note.d*0.9);
+    osc.connect(noteGain);
+    noteGain.connect(musicGainNode);
+    osc.start();
+    osc.stop(audioCtx.currentTime + note.d);
+    chiptuneTimeoutId = setTimeout(playNextNote, note.d*1000);
+  }
+  playNextNote();
+}
+
+function playCustomBuffer(){
+  if(!customBuffer) return;
+  stopMusic();
+  ensureAudioCtx();
+  if(!customGainNode){
+    customGainNode = audioCtx.createGain();
+    customGainNode.gain.value = 0.6;
+    customGainNode.connect(audioCtx.destination);
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = customBuffer;
+  src.loop = true;
+  src.connect(customGainNode);
+  src.start();
+  customSource = src;
+  currentTrackId = 'custom';
+}
+
+function playCustomFile(file){
+  ensureAudioCtx();
+  musicStatus = 'LOADING SONG...';
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const onDecoded = buf => {
+      customBuffer = buf;
+      customFileName = file.name;
+      musicStatus = '';
+      playCustomBuffer();
+    };
+    const onFail = ()=>{ musicStatus = "COULDN'T PLAY THAT FILE"; };
+    try {
+      // callback form works on older iOS Safari too
+      const p = audioCtx.decodeAudioData(reader.result, onDecoded, onFail);
+      if(p && p.catch) p.catch(onFail);
+    } catch(e){ onFail(); }
+  };
+  reader.onerror = ()=>{ musicStatus = "COULDN'T READ THAT FILE"; };
+  reader.readAsArrayBuffer(file);
+}
+
+function resumeCustomTrack(){
+  playCustomBuffer();
+}
+
+function setMusicTrack(trackId){
+  if(trackId === 'off'){
+    stopMusic();
+    currentTrackId = 'off';
+  } else if(MUSIC_TRACKS[trackId]){
+    playChiptune(trackId);
+  }
+  saveProgress();
+}
+
+const musicFileInput = document.getElementById('musicFileInput');
+musicFileInput.addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(file) playCustomFile(file);
+});
+function diffMult(){ return DIFFICULTY[currentDifficulty].bulletSpeedMult; }
+
+// ================= PLAYER =================
+const player = {
+  x: 128, y: 200, r: 5,
+  hp: 6, maxHp: 6,
+  speed: 1.6,
+  dashCD: 0, dashDur: 0, dashDir: [0,0],
+  invulnT: 0,
+  throwCD: 0,
+  facing: 0,
+  bandColor: PAL.red,
+  alive: true,
+  hitFlash: 0,
+  charging: false,
+  chargeFrames: 0
+};
+
+let daggers = []; // player projectiles
+let enemyBullets = []; // boss bullets
+let boss = null;
+let currentRushIndex = 0;
+let currentBossIndex = 0; // which of the 3 bosses in a rush
+let unlockedArtifacts = []; // artifacts player has collected (permanent pool)
+let equippedArtifact = null; // active one this run
+let artifactCharge = 0; // 0 = ready to use if >= 1
+let artifactMaxCharge = 1;
+let artifactUsedThisPhase = false;
+let livesRemaining = 3; // reset from DIFFICULTY[currentDifficulty].lives at run start
+
+// pending choices when picking a new artifact after a rush
+let artifactChoices = [];
+
+// ================= ARTIFACTS DEFINITION =================
+// Each artifact: id, name, desc, color, theme, onPickup (unlock), 
+// charge system handled generically: charges once per boss phase.
+// effect(): called when player triggers use with a charge available.
+const ARTIFACTS = {
+  cloak: {
+    id:'cloak', name:'Cloak of the Ancients',
+    desc:'Absorb one hit for free. Recharges each phase.',
+    color: PAL.cyan, theme:'jungle',
+    use(){
+      // grants a shield hit -- handled via player.shieldHits
+      player.shieldHits = (player.shieldHits||0) + 1;
+      addFloatText(player.x, player.y-14, 'SHIELD UP', PAL.cyan, 8);
+      burst(player.x, player.y, PAL.cyan, 16, 2, 30);
+    }
+  },
+  vinewhip: {
+    id:'vinewhip', name:'Vinewhip Charm',
+    desc:'Next dash pulls in nearby bullets\' danger radius removed (dash becomes a bullet-clearing slash).',
+    color: PAL.lime, theme:'jungle',
+    use(){
+      // clear nearby enemy bullets in radius, small heal chance
+      let cleared = 0;
+      for(let i=enemyBullets.length-1;i>=0;i--){
+        const b = enemyBullets[i];
+        if(dist(b.x,b.y,player.x,player.y) < 60){
+          burst(b.x,b.y, PAL.lime, 5, 1.5, 15);
+          enemyBullets.splice(i,1);
+          cleared++;
+        }
+      }
+      addFloatText(player.x, player.y-14, `CLEARED ${cleared}`, PAL.lime, 8);
+      addShake(3,10);
+    }
+  },
+  thornarmor: {
+    id:'thornarmor', name:'Thornbound Armor',
+    desc:'Unleash a ring of thorns damaging all nearby enemies.',
+    color: PAL.brown, theme:'jungle',
+    use(){
+      if(boss && boss.alive){
+        const d = dist(player.x, player.y, boss.x, boss.y);
+        if(d < 70){
+          damageBoss(3);
+          addFloatText(boss.x, boss.y-20, 'THORNS!', PAL.brown, 8);
+        }
+      }
+      burst(player.x,player.y, PAL.brown, 20, 3, 25);
+      addShake(4,12);
+    }
+  },
+  sunveil: {
+    id:'sunveil', name:'Mirage Veil',
+    desc:'Instantly grants a long window of invulnerability. Walk straight through danger.',
+    color: PAL.orange, theme:'desert',
+    use(){
+      player.invulnT = Math.max(player.invulnT, 60);
+      addFloatText(player.x, player.y-14, 'MIRAGE VEIL', PAL.orange, 8);
+      burst(player.x, player.y, PAL.orange, 18, 2.5, 25);
+      addShake(2,8);
+    }
+  },
+  frostcloak: {
+    id:'frostcloak', name:'Rimefrost Ward',
+    desc:'Freezes nearby bullets in place for a few seconds.',
+    color: PAL.cyan, theme:'ice',
+    use(){
+      let frozenCount = 0;
+      for(const b of enemyBullets){
+        if(dist(b.x,b.y,player.x,player.y) < 70){
+          b.frozen = 90;
+          frozenCount++;
+        }
+      }
+      addFloatText(player.x, player.y-14, `FROZE ${frozenCount}`, PAL.cyan, 8);
+      burst(player.x, player.y, PAL.cyan, 18, 2, 25);
+      addShake(2,8);
+    }
+  },
+  thunderfang: {
+    id:'thunderfang', name:'Thunderfang Idol',
+    desc:'Zaps the boss for solid damage and grants a moment of invulnerability.',
+    color: PAL.yellow, theme:'storm',
+    use(){
+      if(boss && boss.alive){
+        const d = dist(player.x, player.y, boss.x, boss.y);
+        if(d < 90){
+          damageBoss(4);
+          addFloatText(boss.x, boss.y-20, 'SHOCK!', PAL.yellow, 8);
+        }
+      }
+      player.invulnT = Math.max(player.invulnT, 20);
+      burst(player.x,player.y, PAL.yellow, 20, 3, 20);
+      addShake(5,14);
+    }
+  }
+};
+
+// ================= RUSH / BOSS DEFINITIONS =================
+// Each rush has 3 bosses. Boss 3 is the "large boss" combining
+// elements of bosses 1 & 2 (attacks referencing both).
+// Structure allows adding more rushes below easily.
+
+function makeJungleRush(){
+  return {
+    id:'jungle',
+    name:'JUNGLE DEPTHS',
+    bgColor: '#0b2b12',
+    accentColor: PAL.lime,
+    artifactReward: 'cloak', // first clear reward
+    bosses: [
+      makeBoss_VineSerpent,
+      makeBoss_SporeToad,
+      makeBoss_JungleTitan // combines serpent + toad attacks
+    ]
+  };
+}
+
+const RUSHES = [ makeJungleRush() ];
+RUSHES.push(makeDesertRush());
+RUSHES.push(makeIceRush());
+// Add further rushes here by pushing new rush objects with the same shape.
+
+// ---------- BOSS FACTORY HELPERS ----------
+function newBossBase(name, hp, color){
+  hp = Math.round(hp * DIFFICULTY[currentDifficulty].bossHpMult);
+  return {
+    name, hp, maxHp: hp, color,
+    x:128, y:70, r:16,
+    phase:1, maxPhase:3,
+    phaseHpThresholds:[0.66,0.33], // switches phase when hp drops below these fractions
+    t:0, // internal timer
+    attackTimer:0,
+    alive:true,
+    invuln:0,
+    shakeIntro:30,
+    telegraph:null
+  };
+}
+
+function damageBoss(amount){
+  if(!boss || !boss.alive || boss.invuln>0) return;
+  boss.hp -= amount;
+  boss.invuln = 4;
+  addShake(2,6);
+  burst(boss.x + rnd(-8,8), boss.y+rnd(-8,8), PAL.white, 6, 2, 12);
+  if(boss.hp <= 0){
+    boss.hp = 0;
+    onBossDefeated();
+  } else {
+    checkPhaseTransition();
+  }
+}
+
+function checkPhaseTransition(){
+  const frac = boss.hp / boss.maxHp;
+  const idx = boss.phase - 1;
+  if(idx < boss.phaseHpThresholds.length && frac <= boss.phaseHpThresholds[idx]){
+    boss.phase++;
+    // recharge artifact once per phase (per the guideline)
+    artifactCharge = Math.min(artifactMaxCharge, artifactCharge+1);
+    artifactUsedThisPhase = false;
+    boss.invuln = 60;
+    boss.t = 0;
+    enemyBullets = [];
+    addFloatText(boss.x, boss.y-30, `PHASE ${boss.phase}`, PAL.yellow, 10);
+    burst(boss.x, boss.y, PAL.yellow, 30, 3, 40);
+    addShake(6, 20);
+  }
+}
+
+function onBossDefeated(){
+  boss.alive = false;
+  burst(boss.x, boss.y, boss.color, 40, 4, 40);
+  addShake(8,30);
+  currentBossIndex++;
+  const rush = RUSHES[currentRushIndex];
+  if(currentBossIndex >= rush.bosses.length){
+    // rush complete!
+    gameState = STATE.RUSH_COMPLETE;
+    stateTimer = 0;
+    // unlock artifact reward if not already
+    const art = rush.artifactReward;
+    if(!unlockedArtifacts.includes(art)){
+      unlockedArtifacts.push(art);
+      addFloatText(128, 100, 'NEW ARTIFACT: ' + ARTIFACTS[art].name.toUpperCase(), ARTIFACTS[art].color, 7);
+    }
+    saveProgress();
+  } else {
+    gameState = STATE.PHASE_TRANSITION;
+    stateTimer = 0;
+  }
+}
+
+// ================= BOSS ENTRANCE ANIMATIONS =================
+// Each boss factory sets b.entrance = {type, startX/startY, homeX/homeY}
+// and starts b.x/b.y at the "start" point. This function is driven
+// during STATE.BOSS_INTRO with t going 0 -> 1, animating the boss
+// into its resting position with a theme-appropriate flourish.
+function updateBossEntrance(b, t){
+  const e = b.entrance;
+  if(!e) return;
+  switch(e.type){
+    case 'slither': // snake-like: glides in from the side with a decaying wobble
+      b.x = lerp(e.startX, e.homeX, t);
+      b.y = e.homeY + Math.sin(t*Math.PI*5)*14*(1-t);
+      b.entranceAlpha = 1;
+      break;
+    case 'fall': // drops from above and lands with a light squash/impact
+      b.x = e.homeX;
+      b.y = lerp(e.startY, e.homeY, t*t);
+      b.entranceAlpha = 1;
+      if(t>0.9 && !e.impactDone){
+        e.impactDone = true;
+        addShake(4,12);
+        burst(b.x,b.y,b.color,16,2.5,20);
+      }
+      break;
+    case 'burrow': // rises up from underground/off the bottom edge
+      b.x = e.homeX;
+      b.y = lerp(e.startY, e.homeY, t);
+      b.entranceAlpha = 1;
+      if(t<0.95 && Math.random()<0.3) burst(b.x+rnd(-10,10), Math.min(e.startY,246), PAL.brown, 2,1.5,14,1);
+      break;
+    case 'teleportIn': // flickers into place via a handful of quick blinks
+      b.x = e.homeX; b.y = e.homeY;
+      b.entranceAlpha = t;
+      if(t<0.85 && Math.random()<(e.big?0.3:0.18)) burst(e.homeX+rnd(-30,30), e.homeY+rnd(-20,20), b.color, e.big?8:5, 2, 12);
+      break;
+    case 'materialize': // fades/glows into being in place
+      b.x = e.homeX; b.y = e.homeY;
+      b.entranceAlpha = t;
+      break;
+    case 'crash': // heavy boss slams down from above with a big impact
+      b.x = e.homeX;
+      b.y = lerp(e.startY, e.homeY, t*t*t);
+      b.entranceAlpha = 1;
+      if(t>0.9 && !e.impactDone){
+        e.impactDone = true;
+        addShake(8,20);
+        burst(b.x,b.y,b.color,26,3,28);
+      }
+      break;
+    case 'descend': // slow, regal descent from above
+      b.x = e.homeX;
+      b.y = lerp(e.startY, e.homeY, t);
+      b.entranceAlpha = clamp(t*1.5,0,1);
+      break;
+  }
+}
+
+// ================= ATTACK PATTERN POOLS =================
+// Instead of firing the same fixed combo every time, each boss phase
+// now has a pool of distinct attacks it rotates through. Pool size
+// grows with the rush: Jungle bosses top out at 2 patterns in their
+// final phase, Desert at 3, Ice at 4.
+function cyclePattern(b, patterns){
+  const idx = (b.patternIndex||0) % patterns.length;
+  patterns[idx](b);
+  b.patternIndex = (b.patternIndex||0) + 1;
+}
+
+// ---------- BOSS 1: VINE SERPENT ----------
+function makeBoss_VineSerpent(){
+  const b = newBossBase('VINE SERPENT', 40, PAL.lime);
+  b.entrance = { type:'slither', startX:-40, startY:70, homeX:128, homeY:70 };
+  b.x = b.entrance.startX; b.y = b.entrance.startY; b.entranceAlpha = 1;
+  b.segX = []; b.segY = [];
+  for(let i=0;i<8;i++){ b.segX.push(128); b.segY.push(70+i*4); }
+  b.p1 = [ b => spiralShot(b.x,b.y, 8, 2.0, PAL.lime) ];
+  b.p2 = [
+    b => { spiralShot(b.x,b.y, 10, 2.3, PAL.lime); aimedShot(b.x,b.y, 2.6, PAL.green); },
+    b => fanShot(b.x,b.y, 5, 2.4, PAL.green, 0.9)
+  ];
+  b.p3 = [
+    b => { spiralShot(b.x,b.y, 12, 2.6, PAL.lime, 0); spiralShot(b.x,b.y, 12, 2.6, PAL.green, Math.PI); },
+    b => { ringShot(b.x,b.y, 10, 2.4, PAL.lime); aimedShot(b.x,b.y, 3.0, PAL.green); }
+  ];
+  b.update = function(dt){
+    b.t++;
+    // sine-wave slither movement across top area
+    b.x = 128 + Math.sin(b.t*0.02)*70;
+    b.y = 60 + Math.sin(b.t*0.05)*14;
+    // move segments (trailing snake body) - juicy sine trail
+    b.segX.unshift(b.x); b.segY.unshift(b.y);
+    if(b.segX.length>10){ b.segX.pop(); b.segY.pop(); }
+
+    b.attackTimer--;
+    if(b.attackTimer<=0){
+      if(b.phase===1){
+        cyclePattern(b, b.p1);
+        b.attackTimer = 55;
+      } else if(b.phase===2){
+        cyclePattern(b, b.p2);
+        b.attackTimer = 42;
+      } else {
+        cyclePattern(b, b.p3);
+        b.attackTimer = 30;
+      }
+    }
+  };
+  b.draw = function(){
+    // draw trailing body segments (sine wobble)
+    for(let i=b.segX.length-1;i>=0;i--){
+      const sx = b.segX[i], sy = b.segY[i];
+      const wob = wobble(2, 0.3, i*0.5);
+      CTX.fillStyle = i%2===0 ? PAL.green : PAL.lime;
+      CTX.fillRect(sx-6+wob, sy-6, 12, 12);
+    }
+    // head
+    CTX.fillStyle = b.invuln>0 && Math.floor(T/2)%2===0 ? PAL.white : PAL.lime;
+    CTX.fillRect(b.x-10, b.y-10, 20, 20);
+    CTX.fillStyle = PAL.red;
+    CTX.fillRect(b.x-6, b.y-4, 4,4);
+    CTX.fillRect(b.x+2, b.y-4, 4,4);
+  };
+  return b;
+}
+
+// ---------- BOSS 2: SPORE TOAD ----------
+function makeBoss_SporeToad(){
+  const b = newBossBase('SPORE TOAD', 55, PAL.purple);
+  b.hopT = 0; b.hopping=false; b.baseY = 80;
+  b.entrance = { type:'fall', startY:-40, homeY:80, homeX:128 };
+  b.x = b.entrance.homeX; b.y = b.entrance.startY; b.entranceAlpha = 1;
+  b.p1 = [ b => ringShot(b.x,b.y+10, 10, 2.1, PAL.purple) ];
+  b.p2 = [
+    b => { ringShot(b.x,b.y+10, 14, 2.4, PAL.purple); aimedShot(b.x,b.y+10, 2.2, PAL.pink); },
+    b => fanShot(b.x,b.y+10, 5, 2.3, PAL.pink, 0.8)
+  ];
+  b.p3 = [
+    b => { ringShot(b.x,b.y+10, 18, 2.7, PAL.purple); aimedShot(b.x,b.y+10, 2.2, PAL.pink); spiralShot(b.x,b.y+10, 6, 2.0, PAL.indigo); },
+    b => { crossShot(b.x,b.y+10, 2.6, PAL.indigo, b.t*0.05); ringShot(b.x,b.y+10, 10, 2.3, PAL.pink); }
+  ];
+  b.update = function(){
+    b.t++;
+    b.x = 128 + wobble(60, 0.015);
+    // hop with sine arc
+    b.hopT += 1;
+    const hopCycle = b.phase===1?90:(b.phase===2?70:55);
+    const cyclePos = (b.hopT % hopCycle)/hopCycle;
+    b.y = b.baseY - Math.sin(cyclePos*Math.PI)*30;
+    const landed = cyclePos > 0.95;
+
+    b.attackTimer--;
+    if(landed && b.attackTimer<=0){
+      if(b.phase===1) cyclePattern(b, b.p1);
+      else if(b.phase===2) cyclePattern(b, b.p2);
+      else cyclePattern(b, b.p3);
+      b.attackTimer = 20;
+      addShake(3,8);
+    }
+  };
+  b.draw = function(){
+    const squash = 1 - Math.max(0,(b.baseY - b.y))/40;
+    const w = 24, h = 18*clamp(squash,0.6,1);
+    CTX.fillStyle = b.invuln>0 && Math.floor(T/2)%2===0 ? PAL.white : PAL.purple;
+    CTX.fillRect(b.x-w/2, b.y-h/2, w, h);
+    CTX.fillStyle = PAL.pink;
+    CTX.fillRect(b.x-8, b.y-4, 5,5);
+    CTX.fillRect(b.x+3, b.y-4, 5,5);
+  };
+  return b;
+}
+
+// ---------- BOSS 3: JUNGLE TITAN (combines 1 & 2) ----------
+function makeBoss_JungleTitan(){
+  const b = newBossBase('JUNGLE TITAN', 90, PAL.brown);
+  b.baseY = 70;
+  b.entrance = { type:'crash', startY:-60, homeY:70, homeX:128 };
+  b.x = b.entrance.homeX; b.y = b.entrance.startY; b.entranceAlpha = 1;
+  b.segX = []; b.segY = [];
+  for(let i=0;i<6;i++){ b.segX.push(128); b.segY.push(50+i*4); }
+  b.hopT=0;
+  b.p1 = [ b => { spiralShot(b.x,b.y,10,2.2,PAL.lime); ringShot(b.x,b.y,10,1.8,PAL.purple); } ];
+  b.p2 = [
+    b => { spiralShot(b.x,b.y,12,2.4,PAL.lime,0); spiralShot(b.x,b.y,12,2.4,PAL.green,Math.PI); ringShot(b.x,b.y,14,2.0,PAL.pink); aimedShot(b.x,b.y,3.0,PAL.orange); },
+    b => { crossShot(b.x,b.y,2.6,PAL.orange,b.t*0.04); aimedShot(b.x,b.y,3.0,PAL.red); }
+  ];
+  b.p3 = [
+    b => { spiralShot(b.x,b.y,16,2.8,PAL.lime,0); spiralShot(b.x,b.y,16,2.8,PAL.indigo,Math.PI); ringShot(b.x,b.y,20,2.4,PAL.purple); aimedShot(b.x,b.y,3.4,PAL.red); aimedShot(b.x,b.y,3.4,PAL.orange,0.3); },
+    b => { fanShot(b.x,b.y,7,3.0,PAL.orange,1.1); ringShot(b.x,b.y,16,2.6,PAL.brown); }
+  ];
+  b.update = function(){
+    b.t++;
+    b.x = 128 + Math.sin(b.t*0.015)*80;
+    b.y = b.baseY + wobble(10, 0.04);
+    b.segX.unshift(b.x); b.segY.unshift(b.y-20);
+    if(b.segX.length>10){ b.segX.pop(); b.segY.pop(); }
+
+    b.attackTimer--;
+    if(b.attackTimer<=0){
+      if(b.phase===1){
+        cyclePattern(b, b.p1);
+        b.attackTimer = 50;
+      } else if(b.phase===2){
+        cyclePattern(b, b.p2);
+        b.attackTimer = 38;
+      } else {
+        cyclePattern(b, b.p3);
+        b.attackTimer = 26;
+      }
+    }
+  };
+  b.draw = function(){
+    for(let i=b.segX.length-1;i>=0;i--){
+      const sx = b.segX[i], sy = b.segY[i];
+      const wob = wobble(3, 0.25, i*0.5);
+      CTX.fillStyle = i%2===0 ? PAL.brown : PAL.green;
+      CTX.fillRect(sx-8+wob, sy-6, 16, 12);
+    }
+    CTX.fillStyle = b.invuln>0 && Math.floor(T/2)%2===0 ? PAL.white : PAL.brown;
+    CTX.fillRect(b.x-16, b.y-16, 32, 32);
+    CTX.fillStyle = PAL.red;
+    CTX.fillRect(b.x-10, b.y-6, 6,6);
+    CTX.fillRect(b.x+4, b.y-6, 6,6);
+    CTX.fillStyle = PAL.purple;
+    CTX.fillRect(b.x-16, b.y+14, 32, 6);
+  };
+  return b;
+}
+
+// ================= BULLET PATTERN HELPERS =================
+function spiralShot(x,y,count,spd,color,offset=0){
+  spd *= diffMult();
+  for(let i=0;i<count;i++){
+    const a = (i/count)*TAU + T*0.05 + offset;
+    enemyBullets.push({x,y,vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, r:3, color, life:240});
+  }
+}
+function ringShot(x,y,count,spd,color){
+  spd *= diffMult();
+  for(let i=0;i<count;i++){
+    const a = (i/count)*TAU;
+    enemyBullets.push({x,y,vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, r:3, color, life:240});
+  }
+}
+function aimedShot(x,y,spd,color,spread=0){
+  spd *= diffMult();
+  const a = angTo(x,y, player.x, player.y) + spread;
+  enemyBullets.push({x,y,vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, r:3.5, color, life:240});
+}
+// A fan of shots spread evenly around the current aim-at-player angle.
+function fanShot(x,y,count,spd,color,totalSpread){
+  spd *= diffMult();
+  const base = angTo(x,y, player.x, player.y) - totalSpread/2;
+  for(let i=0;i<count;i++){
+    const a = base + totalSpread * (i/Math.max(1,count-1));
+    enemyBullets.push({x,y,vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, r:3, color, life:240});
+  }
+}
+// Four cardinal-direction bullets, rotatable via offset for a spinner feel.
+function crossShot(x,y,spd,color,offset=0){
+  spd *= diffMult();
+  for(let i=0;i<4;i++){
+    const a = offset + i*(Math.PI/2);
+    enemyBullets.push({x,y,vx:Math.cos(a)*spd, vy:Math.sin(a)*spd, r:3, color, life:240});
+  }
+}
+// A single bullet falling from off the top of the screen (icicle rain).
+function rainDrop(x,spd,color,r=3){
+  spd *= diffMult();
+  enemyBullets.push({x, y:-10, vx:0, vy:spd, r, color, life:300});
+}
+
+// ================= BOSS RUSH 2: SUNBAKED WASTES (desert) =================
+
+// ---------- BOSS 1: SCORPION WARDEN ----------
+// Alternates fanning stinger volleys with a telegraphed dash-charge
+// straight at the player -- a new "contact rush" pattern.
+function makeBoss_ScorpionWarden(){
+  const b = newBossBase('SCORPION WARDEN', 50, PAL.orange);
+  b.entrance = { type:'burrow', startY:300, homeY:70, homeX:128 };
+  b.x = b.entrance.homeX; b.y = b.entrance.startY; b.entranceAlpha = 1;
+  b.mode = 'emerge';
+  b.modeTimer = 40;
+  b.chargeDir = [0,0];
+  b.p1 = [ b => fanShot(b.x,b.y,6,2.4,PAL.orange, Math.PI/2) ];
+  b.p2 = [
+    b => { fanShot(b.x,b.y,8,2.6,PAL.orange, Math.PI/2); ringShot(b.x,b.y,8,1.6,PAL.yellow); },
+    b => { aimedShot(b.x,b.y,3.0,PAL.red); aimedShot(b.x,b.y,3.0,PAL.red,0.35); aimedShot(b.x,b.y,3.0,PAL.red,-0.35); }
+  ];
+  b.p3 = [
+    b => { fanShot(b.x,b.y,10,2.8,PAL.orange, Math.PI/2); ringShot(b.x,b.y,8,1.6,PAL.yellow); },
+    b => { aimedShot(b.x,b.y,3.2,PAL.red); aimedShot(b.x,b.y,3.2,PAL.red,0.35); aimedShot(b.x,b.y,3.2,PAL.red,-0.35); },
+    b => crossShot(b.x,b.y,2.6,PAL.yellow, b.t*0.05)
+  ];
+  b.update = function(){
+    b.t++;
+    b.modeTimer--;
+    if(b.mode==='emerge'){
+      b.y = lerp(b.y, 70, 0.08);
+      if(b.modeTimer<=0){ b.mode='attack'; b.modeTimer = b.phase===1?70:(b.phase===2?55:40); b.attackTimer=0; }
+    } else if(b.mode==='attack'){
+      b.x = 128 + wobble(50, 0.02);
+      b.attackTimer--;
+      if(b.attackTimer<=0){
+        if(b.phase===1) cyclePattern(b, b.p1);
+        else if(b.phase===2) cyclePattern(b, b.p2);
+        else cyclePattern(b, b.p3);
+        b.attackTimer = 30;
+      }
+      if(b.modeTimer<=0){
+        b.mode='chargeTelegraph'; b.modeTimer=30;
+        const dx=player.x-b.x, dy=player.y-b.y, len=Math.hypot(dx,dy)||1;
+        b.chargeDir=[dx/len,dy/len];
+      }
+    } else if(b.mode==='chargeTelegraph'){
+      if(b.modeTimer<=0){ b.mode='charge'; b.modeTimer=18; addShake(3,10); }
+    } else if(b.mode==='charge'){
+      const spd = b.phase===1?4:(b.phase===2?5.5:7);
+      b.x += b.chargeDir[0]*spd;
+      b.y += b.chargeDir[1]*spd;
+      b.x = clamp(b.x,20,236); b.y = clamp(b.y,30,200);
+      if(dist(b.x,b.y,player.x,player.y) < b.r+player.r) hurtPlayer(1);
+      if(b.modeTimer<=0){ b.mode='attack'; b.modeTimer=60; b.attackTimer=0; addShake(4,14); burst(b.x,b.y,PAL.orange,14,2,20); }
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    CTX.fillStyle = flashOn?PAL.white:PAL.orange;
+    CTX.fillRect(b.x-14,b.y-10,28,20);
+    CTX.fillStyle = flashOn?PAL.white:PAL.brown;
+    CTX.fillRect(b.x-6,b.y-18,12,10);
+    CTX.fillStyle = PAL.red;
+    CTX.fillRect(b.x-4,b.y-16,3,3);
+    CTX.fillRect(b.x+1,b.y-16,3,3);
+    if(b.mode==='chargeTelegraph'){
+      CTX.strokeStyle='rgba(255,80,0,0.6)';
+      CTX.lineWidth=2;
+      CTX.beginPath();
+      CTX.moveTo(b.x,b.y);
+      CTX.lineTo(b.x+b.chargeDir[0]*140, b.y+b.chargeDir[1]*140);
+      CTX.stroke();
+    }
+  };
+  return b;
+}
+
+// ---------- BOSS 2: SAND WRAITH ----------
+// Teleports around the arena instead of gliding, then unleashes
+// rotating cross-shaped volleys -- a new "blink" movement pattern.
+function makeBoss_SandWraith(){
+  const b = newBossBase('SAND WRAITH', 65, PAL.indigo);
+  b.entrance = { type:'teleportIn', homeX:128, homeY:70 };
+  b.x = b.entrance.homeX; b.y = b.entrance.homeY; b.entranceAlpha = 0;
+  b.teleTimer = 60;
+  b.spinOffset = 0;
+  b.p1 = [ b => { b.spinOffset+=0.3; crossShot(b.x,b.y,2.3,PAL.indigo,b.spinOffset); crossShot(b.x,b.y,2.3,PAL.purple,b.spinOffset+Math.PI/4); } ];
+  b.p2 = [
+    b => { b.spinOffset+=0.3; crossShot(b.x,b.y,2.6,PAL.indigo,b.spinOffset); crossShot(b.x,b.y,2.6,PAL.purple,b.spinOffset+Math.PI/4); aimedShot(b.x,b.y,3.0,PAL.pink); },
+    b => ringShot(b.x,b.y,10,2.2,PAL.purple)
+  ];
+  b.p3 = [
+    b => { b.spinOffset+=0.3; crossShot(b.x,b.y,2.9,PAL.indigo,b.spinOffset); crossShot(b.x,b.y,2.9,PAL.purple,b.spinOffset+Math.PI/4); aimedShot(b.x,b.y,3.0,PAL.pink); aimedShot(b.x,b.y,3.0,PAL.pink,0.4); },
+    b => ringShot(b.x,b.y,14,2.6,PAL.purple),
+    b => fanShot(b.x,b.y,7,2.8,PAL.pink,1.0)
+  ];
+  b.update = function(){
+    b.t++;
+    b.teleTimer--;
+    if(b.teleTimer<=0){
+      burst(b.x,b.y,PAL.indigo,10,2,16);
+      b.x = 60 + rnd(0,136);
+      b.y = 50 + rnd(0,60);
+      burst(b.x,b.y,PAL.indigo,10,2,16);
+      b.teleTimer = b.phase===1?70:(b.phase===2?55:40);
+      addShake(2,8);
+    }
+    b.attackTimer--;
+    if(b.attackTimer<=0){
+      if(b.phase===1){ cyclePattern(b, b.p1); b.attackTimer = 26; }
+      else if(b.phase===2){ cyclePattern(b, b.p2); b.attackTimer = 20; }
+      else { cyclePattern(b, b.p3); b.attackTimer = 15; }
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    const flicker = 0.6+0.4*sin01(0.2);
+    CTX.globalAlpha = flicker;
+    CTX.fillStyle = flashOn?PAL.white:PAL.indigo;
+    CTX.fillRect(b.x-12,b.y-14,24,28);
+    CTX.fillStyle = PAL.pink;
+    CTX.fillRect(b.x-6,b.y-8,4,4);
+    CTX.fillRect(b.x+2,b.y-8,4,4);
+    CTX.globalAlpha = 1;
+  };
+  return b;
+}
+
+// ---------- BOSS 3: SANDSTORM REVENANT (combines 1 & 2) ----------
+function makeBoss_SandstormRevenant(){
+  const b = newBossBase('SANDSTORM REVENANT', 110, PAL.brown);
+  b.entrance = { type:'teleportIn', homeX:128, homeY:70, big:true };
+  b.x = b.entrance.homeX; b.y = b.entrance.homeY; b.entranceAlpha = 0;
+  b.teleTimer=80; b.mode='attack'; b.modeTimer=60; b.chargeDir=[0,0]; b.spinOffset=0;
+  b.p1 = [ b => { b.spinOffset+=0.3; crossShot(b.x,b.y,2.5,PAL.indigo,b.spinOffset); fanShot(b.x,b.y,8,2.6,PAL.orange,Math.PI/2); } ];
+  b.p2 = [
+    b => { b.spinOffset+=0.3; crossShot(b.x,b.y,2.8,PAL.indigo,b.spinOffset); fanShot(b.x,b.y,10,2.8,PAL.orange,Math.PI/2); },
+    b => { aimedShot(b.x,b.y,3.2,PAL.red); aimedShot(b.x,b.y,3.2,PAL.red,0.3); aimedShot(b.x,b.y,3.2,PAL.red,-0.3); }
+  ];
+  b.p3 = [
+    b => { b.spinOffset+=0.3; crossShot(b.x,b.y,3.1,PAL.indigo,b.spinOffset); fanShot(b.x,b.y,12,3.0,PAL.orange,Math.PI/2); ringShot(b.x,b.y,14,2.0,PAL.yellow); },
+    b => { aimedShot(b.x,b.y,3.4,PAL.red); aimedShot(b.x,b.y,3.4,PAL.red,0.3); aimedShot(b.x,b.y,3.4,PAL.red,-0.3); },
+    b => ringShot(b.x,b.y,18,2.6,PAL.orange)
+  ];
+  b.update = function(){
+    b.t++;
+    if(b.mode==='attack'){
+      b.teleTimer--;
+      if(b.teleTimer<=0){
+        burst(b.x,b.y,PAL.brown,10,2,16);
+        b.x = 60+rnd(0,136); b.y=50+rnd(0,60);
+        burst(b.x,b.y,PAL.brown,10,2,16);
+        b.teleTimer = b.phase===1?70:(b.phase===2?50:35);
+      }
+      b.attackTimer--;
+      if(b.attackTimer<=0){
+        if(b.phase===1){ cyclePattern(b, b.p1); b.attackTimer = 36; }
+        else if(b.phase===2){ cyclePattern(b, b.p2); b.attackTimer = 26; }
+        else { cyclePattern(b, b.p3); b.attackTimer = 18; }
+      }
+      b.modeTimer--;
+      if(b.modeTimer<=0){
+        b.mode='chargeTelegraph'; b.modeTimer=26;
+        const dx=player.x-b.x, dy=player.y-b.y, len=Math.hypot(dx,dy)||1;
+        b.chargeDir=[dx/len,dy/len];
+      }
+    } else if(b.mode==='chargeTelegraph'){
+      b.modeTimer--;
+      if(b.modeTimer<=0){ b.mode='charge'; b.modeTimer=16; addShake(3,10); }
+    } else if(b.mode==='charge'){
+      const spd=b.phase===1?4.5:(b.phase===2?6:7.5);
+      b.x+=b.chargeDir[0]*spd; b.y+=b.chargeDir[1]*spd;
+      b.x=clamp(b.x,20,236); b.y=clamp(b.y,30,200);
+      if(dist(b.x,b.y,player.x,player.y)<b.r+player.r) hurtPlayer(1);
+      b.modeTimer--;
+      if(b.modeTimer<=0){ b.mode='attack'; b.modeTimer=70; b.teleTimer=50; b.attackTimer=0; addShake(4,14); burst(b.x,b.y,PAL.brown,16,2,20); }
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    CTX.fillStyle = flashOn?PAL.white:PAL.brown;
+    CTX.fillRect(b.x-18,b.y-16,36,32);
+    CTX.fillStyle = flashOn?PAL.white:PAL.indigo;
+    CTX.fillRect(b.x-10,b.y-24,20,12);
+    CTX.fillStyle = PAL.red;
+    CTX.fillRect(b.x-6,b.y-20,4,4);
+    CTX.fillRect(b.x+2,b.y-20,4,4);
+    if(b.mode==='chargeTelegraph'){
+      CTX.strokeStyle='rgba(255,150,0,0.6)';
+      CTX.lineWidth=2;
+      CTX.beginPath();
+      CTX.moveTo(b.x,b.y);
+      CTX.lineTo(b.x+b.chargeDir[0]*140,b.y+b.chargeDir[1]*140);
+      CTX.stroke();
+    }
+  };
+  return b;
+}
+
+function makeDesertRush(){
+  return {
+    id:'desert',
+    name:'SUNBAKED WASTES',
+    bgColor: '#3a2410',
+    accentColor: PAL.orange,
+    artifactReward: 'sunveil',
+    bosses: [
+      makeBoss_ScorpionWarden,
+      makeBoss_SandWraith,
+      makeBoss_SandstormRevenant
+    ]
+  };
+}
+
+// ================= BOSS RUSH 3: FROSTBOUND SPIRE (ice) =================
+
+// ---------- BOSS 1: GLACIER WISP ----------
+// A floating orb that drifts smoothly and fires expanding ice rings.
+function makeBoss_GlacierWisp(){
+  const b = newBossBase('GLACIER WISP', 45, PAL.cyan);
+  b.entrance = { type:'materialize', homeX:128, homeY:85 };
+  b.x = b.entrance.homeX; b.y = b.entrance.homeY; b.entranceAlpha = 0;
+  b.p1 = [ b => ringShot(b.x,b.y,10,1.8,PAL.cyan) ];
+  b.p2 = [
+    b => { ringShot(b.x,b.y,12,2.0,PAL.cyan); aimedShot(b.x,b.y,2.8,PAL.white); },
+    b => crossShot(b.x,b.y,2.4,PAL.white, b.t*0.03)
+  ];
+  b.p3 = [
+    b => { ringShot(b.x,b.y,16,2.2,PAL.cyan); aimedShot(b.x,b.y,2.8,PAL.white); aimedShot(b.x,b.y,2.8,PAL.white,0.35); },
+    b => crossShot(b.x,b.y,2.6,PAL.white, b.t*0.03),
+    b => fanShot(b.x,b.y,7,2.6,PAL.cyan,1.0),
+    b => spiralShot(b.x,b.y,10,2.2,PAL.white)
+  ];
+  b.update = function(){
+    b.t++;
+    b.x = 128 + Math.sin(b.t*0.018)*75;
+    b.y = 65 + Math.cos(b.t*0.027)*20;
+    if(rnd()<0.3) burst(b.x,b.y,PAL.cyan,1,0.4,20,1);
+    b.attackTimer--;
+    if(b.attackTimer<=0){
+      if(b.phase===1){ cyclePattern(b, b.p1); b.attackTimer = 50; }
+      else if(b.phase===2){ cyclePattern(b, b.p2); b.attackTimer = 38; }
+      else { cyclePattern(b, b.p3); b.attackTimer = 28; }
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    const pulse = 14+wobble(2,0.1);
+    CTX.fillStyle = flashOn?PAL.white:PAL.cyan;
+    CTX.beginPath();
+    CTX.arc(b.x,b.y,pulse,0,TAU);
+    CTX.fill();
+    CTX.fillStyle = PAL.white;
+    CTX.globalAlpha=0.5;
+    CTX.beginPath();
+    CTX.arc(b.x,b.y,pulse*0.5,0,TAU);
+    CTX.fill();
+    CTX.globalAlpha=1;
+  };
+  return b;
+}
+
+// ---------- BOSS 2: PERMAFROST GOLEM ----------
+// Mostly stationary; alternates ground-shockwave rings with icicle
+// rain falling from the top of the screen -- a new vertical pattern.
+function makeBoss_PermafrostGolem(){
+  const b = newBossBase('PERMAFROST GOLEM', 60, PAL.navy);
+  b.entrance = { type:'crash', startY:-60, homeY:75, homeX:128 };
+  b.x = b.entrance.homeX; b.y = b.entrance.startY; b.entranceAlpha = 1;
+  b.stompT = 0;
+  b.rainT = 0;
+  b.p1 = [ b => ringShot(b.x,b.y+10,12,2.2,PAL.navy) ];
+  b.p2 = [
+    b => ringShot(b.x,b.y+10,16,2.4,PAL.navy),
+    b => crossShot(b.x,b.y+10,2.4,PAL.cyan, b.t*0.04)
+  ];
+  b.p3 = [
+    b => ringShot(b.x,b.y+10,20,2.6,PAL.navy),
+    b => crossShot(b.x,b.y+10,2.7,PAL.cyan, b.t*0.04),
+    b => fanShot(b.x,b.y+10,8,2.6,PAL.navy,1.2),
+    b => spiralShot(b.x,b.y+10,10,2.2,PAL.cyan)
+  ];
+  b.update = function(){
+    b.t++;
+    b.x = 128 + wobble(20,0.01);
+    b.y = 75 + wobble(4,0.05);
+    b.stompT--;
+    if(b.stompT<=0){
+      if(b.phase===1){ cyclePattern(b, b.p1); b.stompT = 60; }
+      else if(b.phase===2){ cyclePattern(b, b.p2); b.stompT = 46; }
+      else { cyclePattern(b, b.p3); b.stompT = 34; }
+      addShake(3,10);
+    }
+    b.rainT--;
+    if(b.rainT<=0){
+      const count = b.phase===1?2:(b.phase===2?3:4);
+      for(let i=0;i<count;i++){
+        rainDrop(20+rnd(0,216), 2.0+b.phase*0.3, PAL.cyan);
+      }
+      b.rainT = b.phase===1?26:(b.phase===2?18:12);
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    CTX.fillStyle = flashOn?PAL.white:PAL.navy;
+    CTX.fillRect(b.x-18,b.y-16,36,32);
+    CTX.fillStyle = flashOn?PAL.white:PAL.cyan;
+    CTX.fillRect(b.x-10,b.y-24,20,10);
+    CTX.fillStyle = PAL.white;
+    CTX.fillRect(b.x-6,b.y-20,4,4);
+    CTX.fillRect(b.x+2,b.y-20,4,4);
+  };
+  return b;
+}
+
+// ---------- BOSS 3: RIME SOVEREIGN (combines 1 & 2) ----------
+function makeBoss_RimeSovereign(){
+  const b = newBossBase('RIME SOVEREIGN', 130, PAL.indigo);
+  b.entrance = { type:'descend', startY:-50, homeY:86, homeX:128 };
+  b.x = b.entrance.homeX; b.y = b.entrance.startY; b.entranceAlpha = 0;
+  b.stompT=0; b.rainT=0;
+  b.p1 = [ b => ringShot(b.x,b.y,12,2.05,PAL.cyan) ];
+  b.p2 = [
+    b => { ringShot(b.x,b.y,16,2.3,PAL.cyan); crossShot(b.x,b.y,2.4,PAL.white, b.t*0.02); },
+    b => fanShot(b.x,b.y,7,2.6,PAL.cyan,1.0)
+  ];
+  b.p3 = [
+    b => { ringShot(b.x,b.y,22,2.55,PAL.cyan); crossShot(b.x,b.y,2.4,PAL.white, b.t*0.02); },
+    b => fanShot(b.x,b.y,9,2.8,PAL.cyan,1.2),
+    b => spiralShot(b.x,b.y,12,2.4,PAL.white),
+    b => { ringShot(b.x,b.y,14,2.3,PAL.pink); aimedShot(b.x,b.y,3.0,PAL.pink); }
+  ];
+  b.update = function(){
+    b.t++;
+    b.x = 128 + Math.sin(b.t*0.014)*60;
+    b.y = 70 + Math.cos(b.t*0.02)*16;
+    b.stompT--;
+    if(b.stompT<=0){
+      if(b.phase===1){ cyclePattern(b, b.p1); b.stompT = 55; }
+      else if(b.phase===2){ cyclePattern(b, b.p2); b.stompT = 42; }
+      else { cyclePattern(b, b.p3); b.stompT = 30; }
+      addShake(3,10);
+    }
+    b.rainT--;
+    if(b.rainT<=0){
+      const count=b.phase===1?2:(b.phase===2?3:5);
+      for(let i=0;i<count;i++) rainDrop(20+rnd(0,216), 2.2+b.phase*0.3, PAL.white);
+      b.rainT = b.phase===1?30:(b.phase===2?20:13);
+    }
+    b.attackTimer--;
+    if(b.attackTimer<=0 && b.phase>=3){
+      aimedShot(b.x,b.y,3.2,PAL.pink);
+      aimedShot(b.x,b.y,3.2,PAL.pink,0.3);
+      aimedShot(b.x,b.y,3.2,PAL.pink,-0.3);
+      b.attackTimer=24;
+    } else if(b.attackTimer<=0){
+      b.attackTimer=30;
+    }
+  };
+  b.draw = function(){
+    const flashOn = b.invuln>0 && Math.floor(T/2)%2===0;
+    CTX.fillStyle = flashOn?PAL.white:PAL.indigo;
+    CTX.fillRect(b.x-20,b.y-18,40,36);
+    CTX.fillStyle = flashOn?PAL.white:PAL.cyan;
+    CTX.fillRect(b.x-10,b.y-28,20,12);
+    CTX.fillStyle = PAL.white;
+    CTX.fillRect(b.x-6,b.y-24,4,4);
+    CTX.fillRect(b.x+2,b.y-24,4,4);
+    CTX.fillStyle = PAL.pink;
+    CTX.fillRect(b.x-20,b.y+16,40,6);
+  };
+  return b;
+}
+
+function makeIceRush(){
+  return {
+    id:'ice',
+    name:'FROSTBOUND SPIRE',
+    bgColor: '#0a1a2e',
+    accentColor: PAL.cyan,
+    artifactReward: 'frostcloak',
+    bosses: [
+      makeBoss_GlacierWisp,
+      makeBoss_PermafrostGolem,
+      makeBoss_RimeSovereign
+    ]
+  };
+}
+
+// ================= PLAYER LOGIC =================
+function resetPlayer(){
+  player.x = 128; player.y = 200;
+  player.maxHp = DIFFICULTY[currentDifficulty].playerMaxHp;
+  player.hp = player.maxHp;
+  player.dashCD = 0; player.dashDur = 0;
+  player.invulnT = 0;
+  player.throwCD = 0;
+  player.shieldHits = 0;
+  player.charging = false;
+  player.chargeFrames = 0;
+  player.alive = true;
+}
+
+function updatePlayer(){
+  if(!player.alive) return;
+
+  let mx = 0, my = 0;
+  if(Input.up) my -= 1;
+  if(Input.down) my += 1;
+  if(Input.left) mx -= 1;
+  if(Input.right) mx += 1;
+  if(Input.stickActive){ mx += Input.stickX; my += Input.stickY; }
+  const mlen = Math.hypot(mx,my);
+  if(mlen>0){ mx/=mlen; my/=mlen; }
+
+  // dash
+  if(player.dashDur > 0){
+    player.dashDur--;
+    player.x += player.dashDir[0]*5.2;
+    player.y += player.dashDir[1]*5.2;
+    if(player.dashDur % 3 === 0) burst(player.x, player.y, PAL.cyan, 2, 0.6, 10);
+  } else {
+    player.x += mx*player.speed;
+    player.y += my*player.speed;
+    if(Input.dashPressed && player.dashCD<=0 && mlen>0){
+      player.dashDir = [mx,my];
+      player.dashDur = 8;
+      player.dashCD = 45;
+      player.invulnT = Math.max(player.invulnT, 10);
+      burst(player.x,player.y,PAL.cyan,10,2,20);
+      addShake(2,6);
+    }
+  }
+  if(player.dashCD>0) player.dashCD--;
+
+  player.x = clamp(player.x, 10, 246);
+  player.y = clamp(player.y, 10, 246);
+
+  // aim, then either auto-throw daggers (rogue) or charge/release a blast (wizard)
+  player.facing = angTo(player.x, player.y, Input.mouseX, Input.mouseY);
+  if(selectedCharacter === 'wizard'){
+    updateWizardCharge();
+  } else {
+    if(player.throwCD>0) player.throwCD--;
+    if((Input.mouseDown) && player.throwCD<=0){
+      throwDagger();
+      player.throwCD = 14;
+    }
+  }
+
+  if(player.invulnT>0) player.invulnT--;
+  if(player.hitFlash>0) player.hitFlash--;
+
+  // artifact use
+  if(Input.usePressed && equippedArtifact && artifactCharge>=1){
+    ARTIFACTS[equippedArtifact].use();
+    artifactCharge -= 1;
+  }
+
+  // collisions with enemy bullets
+  for(let i=enemyBullets.length-1;i>=0;i--){
+    const b = enemyBullets[i];
+    if(dist(b.x,b.y,player.x,player.y) < player.r + b.r){
+      enemyBullets.splice(i,1);
+      hurtPlayer(1);
+    }
+  }
+
+  // collision with boss body (contact damage)
+  if(boss && boss.alive){
+    if(dist(player.x,player.y,boss.x,boss.y) < player.r + boss.r*0.7){
+      hurtPlayer(1);
+    }
+  }
+}
+
+function hurtPlayer(amount){
+  if(player.invulnT>0) return;
+  if(player.shieldHits && player.shieldHits>0){
+    player.shieldHits--;
+    player.invulnT = 30;
+    addFloatText(player.x, player.y-14, 'BLOCKED!', PAL.cyan, 8);
+    burst(player.x,player.y, PAL.cyan, 14, 2, 20);
+    addShake(3,10);
+    return;
+  }
+  player.hp -= amount;
+  player.invulnT = 50;
+  player.hitFlash = 12;
+  addShake(4,14);
+  burst(player.x,player.y, PAL.red, 10, 2, 18);
+  if(player.hp<=0){
+    player.hp = 0;
+    player.alive = false;
+    livesRemaining--;
+    gameState = STATE.GAMEOVER;
+    stateTimer = 0;
+  }
+}
+
+function throwDagger(){
+  const a = player.facing;
+  daggers.push({
+    x:player.x, y:player.y,
+    vx:Math.cos(a)*4.6, vy:Math.sin(a)*4.6,
+    life:60, spin:0
+  });
+  burst(player.x + Math.cos(a)*6, player.y + Math.sin(a)*6, PAL.ltgray, 3, 1, 8);
+}
+
+function updateWizardCharge(){
+  if(Input.mouseDown){
+    player.charging = true;
+    player.chargeFrames = Math.min(player.chargeFrames+1, WIZARD_MAX_CHARGE_FRAMES);
+    const lvl = player.chargeFrames / WIZARD_MAX_CHARGE_FRAMES;
+    if(Math.random() < 0.15 + lvl*0.4){
+      const a = rnd(0,TAU);
+      const r = 5 + lvl*5;
+      spawnParticle(player.x+Math.cos(a)*r, player.y+Math.sin(a)*r, PAL.indigo, 1.2, 14, 1);
+    }
+  } else if(player.charging){
+    // release: fire a blast sized by how long it was held
+    fireChargedOrb(player.chargeFrames / WIZARD_MAX_CHARGE_FRAMES);
+    player.charging = false;
+    player.chargeFrames = 0;
+  }
+}
+
+function fireChargedOrb(level){
+  const a = player.facing;
+  const dmg = lerp(3, 24, level);
+  const size = lerp(3, 11, level);
+  const speed = lerp(5.5, 3.2, level);
+  daggers.push({
+    x:player.x, y:player.y,
+    vx:Math.cos(a)*speed, vy:Math.sin(a)*speed,
+    life:90, spin:0, isOrb:true, size, dmg
+  });
+  burst(player.x + Math.cos(a)*8, player.y + Math.sin(a)*8, PAL.indigo, 8+level*14, 1.5+level*2, 16);
+  addShake(1+level*4, 6+level*10);
+}
+
+function updateDaggers(){
+  for(let i=daggers.length-1;i>=0;i--){
+    const d = daggers[i];
+    d.x += d.vx; d.y += d.vy;
+    d.spin += 0.5;
+    d.life--;
+    let hit = false;
+    if(boss && boss.alive && dist(d.x,d.y,boss.x,boss.y) < boss.r + (d.size||0)){
+      damageBoss(d.dmg||1);
+      hit = true;
+      addFloatText(boss.x+rnd(-8,8), boss.y-14, String(Math.round(d.dmg||1)), d.isOrb?PAL.indigo:PAL.white, d.isOrb?9:7);
+    }
+    if(hit || d.life<=0 || d.x<0||d.x>256||d.y<0||d.y>256){
+      daggers.splice(i,1);
+    }
+  }
+}
+
+function updateEnemyBullets(){
+  for(let i=enemyBullets.length-1;i>=0;i--){
+    const b = enemyBullets[i];
+    if(b.frozen > 0){ b.frozen--; } else { b.x += b.vx; b.y += b.vy; }
+    b.life--;
+    if(b.life<=0 || b.x<-10||b.x>266||b.y<-10||b.y>266){
+      enemyBullets.splice(i,1);
+    }
+  }
+}
+
+// ================= DRAWING HELPERS =================
+function drawPlayer(){
+  if(!player.alive) return;
+  const [ox,oy] = [0,0];
+  const bob = wobble(1.4, 0.15);
+  const flashing = player.invulnT>0 && Math.floor(T/3)%2===0;
+
+  CTX.save();
+  CTX.translate(player.x+ox, player.y+oy+bob);
+
+  // body (rogue leathers or wizard robe)
+  CTX.fillStyle = flashing ? PAL.white : (selectedCharacter==='wizard' ? PAL.indigo : PAL.gray);
+  CTX.fillRect(-4,-6,8,10);
+  // legs
+  CTX.fillStyle = PAL.navy;
+  CTX.fillRect(-4,4,3,4);
+  CTX.fillRect(1,4,3,4);
+  // bandanna
+  CTX.fillStyle = player.hitFlash>0 ? PAL.white : player.bandColor;
+  CTX.fillRect(-5,-8,10,4);
+  CTX.fillRect(4,-7, 3,2 + wobble(1,0.3)); // little tail flap
+
+  // shield indicator ring if artifact shield active
+  if(player.shieldHits && player.shieldHits>0){
+    CTX.strokeStyle = PAL.cyan;
+    CTX.lineWidth = 1;
+    CTX.beginPath();
+    CTX.arc(0,0, 9 + wobble(1,0.2), 0, TAU);
+    CTX.stroke();
+  }
+  CTX.restore();
+
+  // wizard's charge-up glow, growing and brightening as it builds
+  if(selectedCharacter === 'wizard' && player.charging){
+    const lvl = player.chargeFrames / WIZARD_MAX_CHARGE_FRAMES;
+    CTX.save();
+    CTX.globalAlpha = 0.3 + lvl*0.3;
+    CTX.fillStyle = lvl>=1 ? PAL.white : PAL.indigo;
+    CTX.beginPath();
+    CTX.arc(player.x, player.y, 6 + lvl*7 + wobble(1,0.3), 0, TAU);
+    CTX.fill();
+    CTX.globalAlpha = 1;
+    CTX.restore();
+  }
+
+  // held weapon pointing at aim dir: dagger for rogue, staff tip for wizard
+  const hx = player.x + Math.cos(player.facing)*8;
+  const hy = player.y + Math.sin(player.facing)*8;
+  CTX.save();
+  CTX.translate(hx,hy);
+  CTX.rotate(player.facing);
+  if(selectedCharacter === 'wizard'){
+    CTX.fillStyle = PAL.brown;
+    CTX.fillRect(-1,-6,2,12);
+    CTX.fillStyle = PAL.indigo;
+    CTX.fillRect(-2,-7,4,4);
+  } else {
+    CTX.fillStyle = PAL.ltgray;
+    CTX.fillRect(-4,-1,8,2);
+  }
+  CTX.restore();
+}
+
+function drawDaggers(){
+  for(const d of daggers){
+    if(d.isOrb){
+      CTX.save();
+      CTX.translate(d.x,d.y);
+      CTX.globalAlpha = 0.35;
+      CTX.fillStyle = PAL.indigo;
+      CTX.beginPath();
+      CTX.arc(0,0, d.size+3, 0, TAU);
+      CTX.fill();
+      CTX.globalAlpha = 1;
+      CTX.fillStyle = PAL.pink;
+      CTX.beginPath();
+      CTX.arc(0,0, d.size, 0, TAU);
+      CTX.fill();
+      CTX.fillStyle = PAL.white;
+      CTX.beginPath();
+      CTX.arc(0,0, Math.max(1,d.size*0.4), 0, TAU);
+      CTX.fill();
+      CTX.restore();
+      continue;
+    }
+    CTX.save();
+    CTX.translate(d.x,d.y);
+    CTX.rotate(d.spin);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.fillRect(-5,-1,10,2);
+    CTX.fillStyle = PAL.gray;
+    CTX.fillRect(-1,-1,2,2);
+    CTX.restore();
+  }
+}
+
+function drawEnemyBullets(){
+  for(const b of enemyBullets){
+    CTX.fillStyle = b.frozen > 0 ? PAL.white : b.color;
+    CTX.fillRect(b.x-b.r, b.y-b.r, b.r*2, b.r*2);
+    CTX.fillStyle = PAL.white;
+    CTX.globalAlpha = 0.5;
+    CTX.fillRect(b.x-1, b.y-1, 1.5,1.5);
+    CTX.globalAlpha = 1;
+  }
+}
+
+function drawHUD(){
+  // hp hearts (dagger icons)
+  for(let i=0;i<player.maxHp;i++){
+    const x = 8 + i*11;
+    const y = 8;
+    CTX.fillStyle = i < player.hp ? PAL.red : '#3a2030';
+    CTX.fillRect(x,y,8,8);
+  }
+  // lives remaining (only shown when the difficulty grants more than one)
+  if(DIFFICULTY[currentDifficulty].lives > 1){
+    CTX.fillStyle = PAL.white;
+    CTX.font = '7px monospace';
+    CTX.fillText('LIVES x' + Math.max(0,livesRemaining), 8, 236);
+  }
+  // boss hp bar
+  if(boss && boss.alive){
+    const w = 200;
+    const x = 28, y = 20;
+    CTX.fillStyle = '#222';
+    CTX.fillRect(x-1,y-1,w+2,7);
+    CTX.fillStyle = boss.color;
+    CTX.fillRect(x,y, w * clamp(boss.hp/boss.maxHp,0,1), 5);
+    CTX.fillStyle = PAL.white;
+    CTX.font='7px monospace';
+    CTX.fillText(boss.name + '  P'+boss.phase, x, y-3);
+  }
+  // artifact charge indicator
+  if(equippedArtifact){
+    const art = ARTIFACTS[equippedArtifact];
+    const x = 256-46, y = 8;
+    CTX.fillStyle = artifactCharge>=1 ? art.color : '#333';
+    CTX.fillRect(x,y,38,10);
+    CTX.fillStyle = PAL.black;
+    CTX.font='6px monospace';
+    CTX.fillText(artifactCharge>=1?'READY':'CHARGE', x+3, y+7);
+  }
+}
+
+// ================= BACKGROUND (parallax sine jungle) =================
+function drawBackground(rush){
+  CTX.fillStyle = rush ? rush.bgColor : '#151025';
+  CTX.fillRect(0,0,256,256);
+  // simple sine-wavy vine silhouettes for atmosphere
+  CTX.strokeStyle = 'rgba(0,255,100,0.08)';
+  for(let i=0;i<5;i++){
+    CTX.beginPath();
+    for(let x=0;x<=256;x+=8){
+      const y = 30 + i*45 + Math.sin((x*0.03)+(T*0.01)+i)*10;
+      if(x===0) CTX.moveTo(x,y); else CTX.lineTo(x,y);
+    }
+    CTX.lineWidth = 3;
+    CTX.stroke();
+  }
+  // arena circle guide
+  CTX.strokeStyle = 'rgba(255,255,255,0.05)';
+  CTX.beginPath();
+  CTX.arc(128,140,100,0,TAU);
+  CTX.stroke();
+}
+
+// ================= ARTIFACT SELECT UI =================
+function buildArtifactChoices(){
+  // Cloak is always available; any artifact earned by clearing a
+  // rush is added to the choices and kept between sessions.
+  artifactChoices = ['cloak'].concat(
+    unlockedArtifacts.filter(k => k !== 'cloak' && ARTIFACTS[k])
+  ).slice(0,3);
+}
+
+function artifactCardRect(i){
+  const startY = 96, h = 42, gap = 10;
+  return { x: 28, y: startY + i*(h+gap), w: 200, h };
+}
+
+function difficultyCardRect(i){
+  const startY = 84, h = 40, gap = 8;
+  return { x: 28, y: startY + i*(h+gap), w: 200, h };
+}
+function settingsBackRect(){
+  return { x: 88, y: 226, w: 80, h: 22 };
+}
+function settingsButtonRect(){
+  return { x: 18, y: 182, w: 95, h: 20 };
+}
+
+function rushCardRect(i){
+  const startY = 84, h = 40, gap = 8;
+  return { x: 28, y: startY + i*(h+gap), w: 200, h };
+}
+function rushSelectBackRect(){
+  return { x: 88, y: 226, w: 80, h: 22 };
+}
+function rushSelectButtonRect(){
+  return { x: 143, y: 182, w: 95, h: 20 };
+}
+function musicButtonRect(){
+  return { x: 18, y: 206, w: 95, h: 20 };
+}
+function characterButtonRect(){
+  return { x: 143, y: 206, w: 95, h: 20 };
+}
+
+function getMusicOptions(){
+  const opts = [
+    { id:'off',       label:'MUSIC OFF',          color:PAL.gray },
+    { id:'adventure', label:'ADVENTURE THEME',     color:PAL.lime },
+    { id:'mystery',   label:'MYSTERY THEME',       color:PAL.indigo },
+    { id:'battle',    label:'BATTLE THEME',        color:PAL.red },
+    { id:'upload',    label:'UPLOAD YOUR OWN...',  color:PAL.orange }
+  ];
+  if(customFileName){
+    opts.push({ id:'customSelect', label:'MY SONG: '+customFileName.slice(0,16), color:PAL.peach });
+  }
+  return opts;
+}
+function musicOptionRect(i){
+  return { x: 20, y: 44 + i*25, w: 216, h: 22 };
+}
+function musicBackRect(){
+  const y = 44 + getMusicOptions().length*25 + 6;
+  return { x: 88, y, w: 80, h: 22 };
+}
+
+function drawMusicSelect(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '10px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('MUSIC', 128, 32);
+  if(musicStatus){
+    CTX.font = '7px monospace';
+    CTX.fillStyle = musicStatus.startsWith('LOADING') ? PAL.yellow : PAL.red;
+    CTX.fillText(musicStatus, 128, 41);
+  }
+  CTX.textAlign = 'left';
+
+  const opts = getMusicOptions();
+  for(let i=0;i<opts.length;i++){
+    const o = opts[i];
+    const r = musicOptionRect(i);
+    const selected = o.id===currentTrackId || (o.id==='customSelect' && currentTrackId==='custom');
+    CTX.fillStyle = '#1a1a2e';
+    CTX.fillRect(r.x, r.y, r.w, r.h);
+    CTX.strokeStyle = o.color;
+    CTX.lineWidth = selected ? 3 : 1;
+    CTX.strokeRect(r.x, r.y, r.w, r.h);
+    CTX.fillStyle = o.color;
+    CTX.font = '8px monospace';
+    CTX.fillText((selected ? '> ' : '') + o.label, r.x+6, r.y+14);
+  }
+
+  const bb = musicBackRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.strokeStyle = PAL.white;
+  CTX.lineWidth = 2;
+  CTX.strokeRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('BACK', bb.x+bb.w/2, bb.y+15);
+  CTX.textAlign = 'left';
+}
+
+function handleMusicSelectInput(){
+  if(!Input.mouseClicked) return;
+  const opts = getMusicOptions();
+  for(let i=0;i<opts.length;i++){
+    const r = musicOptionRect(i);
+    if(Input.mouseX>=r.x && Input.mouseX<=r.x+r.w && Input.mouseY>=r.y && Input.mouseY<=r.y+r.h){
+      const o = opts[i];
+      if(o.id==='upload'){ /* file picker is opened synchronously in registerClick() */ }
+      else if(o.id==='customSelect') resumeCustomTrack();
+      else setMusicTrack(o.id);
+      return;
+    }
+  }
+  const bb = musicBackRect();
+  if(Input.mouseX>=bb.x && Input.mouseX<=bb.x+bb.w && Input.mouseY>=bb.y && Input.mouseY<=bb.y+bb.h){
+    gameState = STATE.MENU;
+  }
+}
+
+function characterCardRect(i){
+  const startY = 70, h = 62, gap = 12;
+  return { x: 20, y: startY + i*(h+gap), w: 216, h };
+}
+function characterBackRect(){
+  return { x: 88, y: 226, w: 80, h: 22 };
+}
+
+function drawCharacterSelect(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '10px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('CHOOSE YOUR CHARACTER', 128, 50);
+  CTX.textAlign = 'left';
+
+  const keys = Object.keys(CHARACTERS);
+  for(let i=0;i<keys.length;i++){
+    const key = keys[i];
+    const c = CHARACTERS[key];
+    const r = characterCardRect(i);
+    const selected = key === selectedCharacter;
+    CTX.fillStyle = '#1a1a2e';
+    CTX.fillRect(r.x, r.y, r.w, r.h);
+    CTX.strokeStyle = c.color;
+    CTX.lineWidth = selected ? 3 : 1;
+    CTX.strokeRect(r.x, r.y, r.w, r.h);
+    CTX.fillStyle = c.color;
+    CTX.font = '10px monospace';
+    CTX.fillText((selected ? '> ' : '') + c.name, r.x+8, r.y+16);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.font = '7px monospace';
+    wrapText(c.desc, r.x+8, r.y+30, r.w-16, 9);
+  }
+
+  const bb = characterBackRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.strokeStyle = PAL.white;
+  CTX.lineWidth = 2;
+  CTX.strokeRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('BACK', bb.x+bb.w/2, bb.y+15);
+  CTX.textAlign = 'left';
+}
+
+function handleCharacterSelectInput(){
+  if(!Input.mouseClicked) return;
+  const keys = Object.keys(CHARACTERS);
+  for(let i=0;i<keys.length;i++){
+    const r = characterCardRect(i);
+    if(Input.mouseX>=r.x && Input.mouseX<=r.x+r.w && Input.mouseY>=r.y && Input.mouseY<=r.y+r.h){
+      selectedCharacter = keys[i];
+      saveProgress();
+      burst(r.x+r.w/2, r.y+r.h/2, CHARACTERS[selectedCharacter].color, 10, 2, 14);
+      return;
+    }
+  }
+  const bb = characterBackRect();
+  if(Input.mouseX>=bb.x && Input.mouseX<=bb.x+bb.w && Input.mouseY>=bb.y && Input.mouseY<=bb.y+bb.h){
+    gameState = STATE.MENU;
+  }
+}
+
+function drawRushSelect(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '10px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('SELECT RUSH', 128, 66);
+  CTX.textAlign = 'left';
+
+  for(let i=0;i<RUSHES.length;i++){
+    const rush = RUSHES[i];
+    const r = rushCardRect(i);
+    const selected = i === selectedRushIndex;
+    CTX.fillStyle = '#1a1a2e';
+    CTX.fillRect(r.x, r.y, r.w, r.h);
+    CTX.strokeStyle = rush.accentColor;
+    CTX.lineWidth = selected ? 3 : 1;
+    CTX.strokeRect(r.x, r.y, r.w, r.h);
+    CTX.fillStyle = rush.accentColor;
+    CTX.font = '9px monospace';
+    CTX.fillText((selected ? '> ' : '') + rush.name, r.x+6, r.y+13);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.font = '6px monospace';
+    const bossNames = rush.bosses.length + ' bosses';
+    CTX.fillText(bossNames, r.x+6, r.y+26);
+  }
+
+  const bb = rushSelectBackRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.strokeStyle = PAL.white;
+  CTX.lineWidth = 2;
+  CTX.strokeRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('BACK', bb.x+bb.w/2, bb.y+15);
+  CTX.textAlign = 'left';
+}
+
+function handleRushSelectInput(){
+  if(!Input.mouseClicked) return;
+  for(let i=0;i<RUSHES.length;i++){
+    const r = rushCardRect(i);
+    if(Input.mouseX>=r.x && Input.mouseX<=r.x+r.w && Input.mouseY>=r.y && Input.mouseY<=r.y+r.h){
+      selectedRushIndex = i;
+      saveProgress();
+      burst(r.x+r.w/2, r.y+r.h/2, RUSHES[i].accentColor, 10, 2, 14);
+      return;
+    }
+  }
+  const bb = rushSelectBackRect();
+  if(Input.mouseX>=bb.x && Input.mouseX<=bb.x+bb.w && Input.mouseY>=bb.y && Input.mouseY<=bb.y+bb.h){
+    gameState = STATE.MENU;
+  }
+}
+
+function drawSettings(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '10px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('DIFFICULTY', 128, 66);
+  CTX.textAlign = 'left';
+
+  for(let i=0;i<DIFFICULTY_ORDER.length;i++){
+    const key = DIFFICULTY_ORDER[i];
+    const d = DIFFICULTY[key];
+    const r = difficultyCardRect(i);
+    const selected = key === currentDifficulty;
+    CTX.fillStyle = '#1a1a2e';
+    CTX.fillRect(r.x, r.y, r.w, r.h);
+    CTX.strokeStyle = d.color;
+    CTX.lineWidth = selected ? 3 : 1;
+    CTX.strokeRect(r.x, r.y, r.w, r.h);
+    CTX.fillStyle = d.color;
+    CTX.font = '9px monospace';
+    CTX.fillText((selected ? '> ' : '') + d.label, r.x+6, r.y+13);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.font = '6px monospace';
+    wrapText(d.desc, r.x+6, r.y+24, r.w-12, 8);
+  }
+
+  const bb = settingsBackRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.strokeStyle = PAL.white;
+  CTX.lineWidth = 2;
+  CTX.strokeRect(bb.x, bb.y, bb.w, bb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('BACK', bb.x+bb.w/2, bb.y+15);
+  CTX.textAlign = 'left';
+}
+
+function handleSettingsInput(){
+  if(!Input.mouseClicked) return;
+  for(let i=0;i<DIFFICULTY_ORDER.length;i++){
+    const r = difficultyCardRect(i);
+    if(Input.mouseX>=r.x && Input.mouseX<=r.x+r.w && Input.mouseY>=r.y && Input.mouseY<=r.y+r.h){
+      currentDifficulty = DIFFICULTY_ORDER[i];
+      saveProgress();
+      burst(r.x+r.w/2, r.y+r.h/2, DIFFICULTY[currentDifficulty].color, 10, 2, 14);
+      return;
+    }
+  }
+  const bb = settingsBackRect();
+  if(Input.mouseX>=bb.x && Input.mouseX<=bb.x+bb.w && Input.mouseY>=bb.y && Input.mouseY<=bb.y+bb.h){
+    gameState = STATE.MENU;
+  }
+}
+
+function handleArtifactSelectInput(){
+  if(!Input.mouseClicked) return;
+  for(let i=0;i<artifactChoices.length;i++){
+    const r = artifactCardRect(i);
+    if(Input.mouseX>=r.x && Input.mouseX<=r.x+r.w && Input.mouseY>=r.y && Input.mouseY<=r.y+r.h){
+      equippedArtifact = artifactChoices[i];
+      if(!unlockedArtifacts.includes(equippedArtifact)) unlockedArtifacts.push(equippedArtifact);
+      startRun();
+      return;
+    }
+  }
+}
+
+function wrapText(text,x,y,maxW,lh){
+  const words = text.split(' ');
+  let line = '';
+  let yy = y;
+  for(const w of words){
+    const test = line + w + ' ';
+    if(CTX.measureText(test).width > maxW && line !== ''){
+      CTX.fillText(line, x, yy);
+      line = w + ' ';
+      yy += lh;
+    } else {
+      line = test;
+    }
+  }
+  CTX.fillText(line, x, yy);
+}
+
+function drawIntro(){
+  CTX.fillStyle = '#050505';
+  CTX.fillRect(0,0,256,256);
+
+  CTX.save();
+  CTX.font = '18px monospace';
+  CTX.textAlign = 'left';
+  CTX.fillStyle = PAL.white;
+  const leftPart = 'DAGGERS';
+  const rightPart = 'EDGE';
+  const fullW = CTX.measureText(leftPart+rightPart).width;
+  const leftW = CTX.measureText(leftPart).width;
+  const startX = 128 - fullW/2;
+  const baseY = 130 + (introPhase==='waiting' ? wobble(1.5,0.04) : 0);
+  CTX.fillText(leftPart, startX - introSplitAmount, baseY);
+  CTX.fillText(rightPart, startX + leftW + introSplitAmount, baseY);
+  CTX.restore();
+
+  // the dagger itself: falls from off-screen, then rests lodged in the split
+  if(introPhase==='falling' || introPhase==='split' || introPhase==='ready'){
+    CTX.save();
+    CTX.translate(128, introDaggerY);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.fillRect(-2,-16,4,26);
+    CTX.fillStyle = PAL.gray;
+    CTX.fillRect(-1,-16,2,26);
+    CTX.fillStyle = PAL.brown;
+    CTX.fillRect(-4,9,8,7);
+    CTX.restore();
+  }
+
+  drawParticles();
+
+  if(introPhase==='ready' && Math.floor(T/40)%2===0){
+    CTX.fillStyle = PAL.white;
+    CTX.font = '10px monospace';
+    CTX.textAlign = 'center';
+    CTX.fillText('CLICK START', 128, 174);
+    CTX.textAlign = 'left';
+  }
+}
+
+function drawMenu(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '16px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('ROGUE DAGGER', 128, 100 + wobble(2,0.05));
+  CTX.font = '8px monospace';
+  CTX.fillStyle = PAL.orange;
+  CTX.fillText('a bullet-hell boss rush', 128, 116);
+  if(Math.floor(menuBlink/20)%2===0){
+    CTX.fillStyle = PAL.white;
+    CTX.fillText('TAP / CLICK TO START', 128, 160);
+  }
+  CTX.fillStyle = DIFFICULTY[currentDifficulty].color;
+  CTX.font = '7px monospace';
+  CTX.fillText('DIFFICULTY: ' + DIFFICULTY[currentDifficulty].label, 128, 176);
+
+  const sb = settingsButtonRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(sb.x, sb.y, sb.w, sb.h);
+  CTX.strokeStyle = PAL.white;
+  CTX.lineWidth = 1;
+  CTX.strokeRect(sb.x, sb.y, sb.w, sb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.fillText('SETTINGS', sb.x+sb.w/2, sb.y+14);
+
+  const rb = rushSelectButtonRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(rb.x, rb.y, rb.w, rb.h);
+  CTX.strokeStyle = RUSHES[selectedRushIndex].accentColor;
+  CTX.lineWidth = 1;
+  CTX.strokeRect(rb.x, rb.y, rb.w, rb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.fillText('SELECT RUSH', rb.x+rb.w/2, rb.y+14);
+
+  const mb = musicButtonRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(mb.x, mb.y, mb.w, mb.h);
+  CTX.strokeStyle = currentTrackId==='off' ? PAL.white : PAL.lime;
+  CTX.lineWidth = 1;
+  CTX.strokeRect(mb.x, mb.y, mb.w, mb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.fillText('MUSIC', mb.x+mb.w/2, mb.y+14);
+
+  const cb = characterButtonRect();
+  CTX.fillStyle = '#1a1a2e';
+  CTX.fillRect(cb.x, cb.y, cb.w, cb.h);
+  CTX.strokeStyle = CHARACTERS[selectedCharacter].color;
+  CTX.lineWidth = 1;
+  CTX.strokeRect(cb.x, cb.y, cb.w, cb.h);
+  CTX.fillStyle = PAL.white;
+  CTX.font = '8px monospace';
+  CTX.fillText('CHARACTER', cb.x+cb.w/2, cb.y+14);
+
+  CTX.textAlign = 'left';
+}
+
+function drawArtifactSelect(){
+  CTX.fillStyle = PAL.white;
+  CTX.font = '10px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('CHOOSE YOUR ARTIFACT', 128, 70);
+  CTX.textAlign = 'left';
+
+  for(let i=0;i<artifactChoices.length;i++){
+    const art = ARTIFACTS[artifactChoices[i]];
+    const r = artifactCardRect(i);
+    CTX.fillStyle = '#1a1a2e';
+    CTX.fillRect(r.x, r.y, r.w, r.h);
+    CTX.strokeStyle = art.color;
+    CTX.lineWidth = 2;
+    CTX.strokeRect(r.x, r.y, r.w, r.h);
+    CTX.fillStyle = art.color;
+    CTX.font = '9px monospace';
+    CTX.fillText(art.name, r.x+6, r.y+14);
+    CTX.fillStyle = PAL.ltgray;
+    CTX.font = '6px monospace';
+    wrapText(art.desc, r.x+6, r.y+26, r.w-12, 8);
+  }
+}
+
+function drawBossIntroOverlay(){
+  const alpha = clamp(1-stateTimer/60, 0, 1);
+  CTX.globalAlpha = alpha;
+  CTX.fillStyle = PAL.white;
+  CTX.font = '12px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText(boss.name, 128, 130);
+  CTX.font = '7px monospace';
+  CTX.fillStyle = PAL.yellow;
+  CTX.fillText('BOSS APPROACHES', 128, 144);
+  CTX.globalAlpha = 1;
+  CTX.textAlign = 'left';
+}
+
+function drawCenterText(text, color){
+  CTX.fillStyle = color;
+  CTX.font = '14px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText(text, 128, 128);
+  CTX.textAlign = 'left';
+}
+
+function drawRushComplete(){
+  CTX.fillStyle = PAL.yellow;
+  CTX.font = '12px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText('RUSH COMPLETE!', 128, 110);
+  CTX.font = '8px monospace';
+  CTX.fillStyle = PAL.white;
+  CTX.fillText('New artifact unlocked!', 128, 130);
+  if(stateTimer > 60){
+    CTX.fillStyle = PAL.ltgray;
+    CTX.fillText('TAP TO CONTINUE', 128, 150);
+  }
+  CTX.textAlign = 'left';
+}
+
+function drawGameOver(){
+  const outOfLives = livesRemaining <= 0;
+  CTX.fillStyle = PAL.red;
+  CTX.font = '14px monospace';
+  CTX.textAlign = 'center';
+  CTX.fillText(outOfLives ? 'OUT OF LIVES' : 'YOU DIED', 128, 120);
+  CTX.font = '8px monospace';
+  CTX.fillStyle = PAL.white;
+  if(DIFFICULTY[currentDifficulty].lives > 1){
+    CTX.fillText('LIVES LEFT: ' + Math.max(0,livesRemaining), 128, 134);
+  }
+  if(stateTimer > 40){
+    let msg;
+    if(outOfLives) msg = 'TAP TO RETURN TO MENU';
+    else if(DIFFICULTY[currentDifficulty].checkpoints) msg = 'TAP TO RETRY BOSS';
+    else msg = 'TAP TO RESTART RUN';
+    CTX.fillText(msg, 128, 150);
+  }
+  CTX.textAlign = 'left';
+}
+
+// ================= FLOW CONTROL =================
+function startRun(){
+  currentRushIndex = selectedRushIndex;
+  currentBossIndex = 0;
+  resetPlayer();
+  daggers = []; enemyBullets = []; particles = []; floatTexts = [];
+  artifactCharge = 1;
+  livesRemaining = DIFFICULTY[currentDifficulty].lives;
+  updateWorldBackground();
+  startBossIntro();
+}
+
+// Used when a life remains but the difficulty has no checkpoints:
+// goes back to the first boss of the first rush, keeping the same
+// equipped artifact and remaining lives (unlike startRun, which is
+// only for a brand new run picked from the artifact-select screen).
+function restartFromBeginning(){
+  currentRushIndex = selectedRushIndex;
+  currentBossIndex = 0;
+  resetPlayer();
+  daggers = []; enemyBullets = []; particles = []; floatTexts = [];
+  artifactCharge = 1;
+  updateWorldBackground();
+  startBossIntro();
+}
+
+function startBossIntro(){
+  const rush = RUSHES[currentRushIndex];
+  boss = rush.bosses[currentBossIndex]();
+  gameState = STATE.BOSS_INTRO;
+  stateTimer = 0;
+  enemyBullets = [];
+}
+
+function startNextBossAfterTransition(){
+  const rush = RUSHES[currentRushIndex];
+  boss = rush.bosses[currentBossIndex]();
+  gameState = STATE.BOSS_INTRO;
+  stateTimer = 0;
+  enemyBullets = [];
+}
+
+// ================= MAIN UPDATE =================
+function update(){
+  if(gamePaused){
+    if(Input.mouseClicked){ gamePaused = false; Input.mouseDown = false; }
+    endFrameInput();
+    return;
+  }
+  T++;
+  updateShake();
+  updateParticles();
+  updateFloatTexts();
+
+  if(gameState === STATE.INTRO){
+    if(introPhase === 'waiting'){
+      if(Input.mouseClicked){
+        introPhase = 'falling';
+        introDaggerY = -30;
+      }
+    } else if(introPhase === 'falling'){
+      introDaggerY += 9;
+      if(introDaggerY >= 128){
+        introDaggerY = 128;
+        introPhase = 'split';
+        introSplitAmount = 0;
+        addShake(6,20);
+        burst(128,128,PAL.white,26,3,26);
+        burst(128,128,PAL.yellow,10,2,20);
+      }
+    } else if(introPhase === 'split'){
+      introSplitAmount += 1.6;
+      if(introSplitAmount >= 34){
+        introSplitAmount = 34;
+        introPhase = 'ready';
+      }
+    } else if(introPhase === 'ready'){
+      if(Input.mouseClicked){
+        gameState = STATE.MENU;
+      }
+    }
+  }
+  else if(gameState === STATE.MENU){
+    menuBlink++;
+    if(Input.mouseClicked){
+      const sb = settingsButtonRect();
+      const rb = rushSelectButtonRect();
+      const mb = musicButtonRect();
+      const cb = characterButtonRect();
+      if(Input.mouseX>=sb.x && Input.mouseX<=sb.x+sb.w && Input.mouseY>=sb.y && Input.mouseY<=sb.y+sb.h){
+        gameState = STATE.SETTINGS;
+      } else if(Input.mouseX>=rb.x && Input.mouseX<=rb.x+rb.w && Input.mouseY>=rb.y && Input.mouseY<=rb.y+rb.h){
+        gameState = STATE.RUSH_SELECT;
+      } else if(Input.mouseX>=mb.x && Input.mouseX<=mb.x+mb.w && Input.mouseY>=mb.y && Input.mouseY<=mb.y+mb.h){
+        gameState = STATE.MUSIC_SELECT;
+      } else if(Input.mouseX>=cb.x && Input.mouseX<=cb.x+cb.w && Input.mouseY>=cb.y && Input.mouseY<=cb.y+cb.h){
+        gameState = STATE.CHARACTER_SELECT;
+      } else {
+        gameState = STATE.ARTIFACT_SELECT;
+        buildArtifactChoices();
+      }
+    } else if(Input.dashPressed || Input.usePressed){
+      gameState = STATE.ARTIFACT_SELECT;
+      buildArtifactChoices();
+    }
+  }
+  else if(gameState === STATE.RUSH_SELECT){
+    handleRushSelectInput();
+  }
+  else if(gameState === STATE.MUSIC_SELECT){
+    handleMusicSelectInput();
+  }
+  else if(gameState === STATE.CHARACTER_SELECT){
+    handleCharacterSelectInput();
+  }
+  else if(gameState === STATE.SETTINGS){
+    handleSettingsInput();
+  }
+  else if(gameState === STATE.ARTIFACT_SELECT){
+    handleArtifactSelectInput();
+  }
+  else if(gameState === STATE.BOSS_INTRO){
+    stateTimer++;
+    if(boss) updateBossEntrance(boss, clamp(stateTimer/60, 0, 1));
+    if(stateTimer > 60){
+      if(boss && boss.entrance){
+        boss.x = boss.entrance.homeX;
+        boss.y = boss.entrance.homeY;
+        boss.entranceAlpha = 1;
+      }
+      gameState = STATE.PLAYING;
+    }
+  }
+  else if(gameState === STATE.PLAYING){
+    updatePlayer();
+    updateDaggers();
+    updateEnemyBullets();
+    if(boss && boss.alive){
+      boss.update();
+      if(boss.invuln>0) boss.invuln--;
+    }
+  }
+  else if(gameState === STATE.PHASE_TRANSITION){
+    stateTimer++;
+    enemyBullets = [];
+    if(stateTimer > 50){
+      startNextBossAfterTransition();
+    }
+  }
+  else if(gameState === STATE.RUSH_COMPLETE){
+    stateTimer++;
+    if(stateTimer > 70 && (Input.mouseClicked || Input.dashPressed)){
+      // proceed to next rush if exists, else victory
+      currentRushIndex++;
+      currentBossIndex = 0;
+      if(currentRushIndex >= RUSHES.length){
+        gameState = STATE.VICTORY;
+        stateTimer = 0;
+      } else {
+        resetPlayer();
+        artifactCharge = 1;
+        updateWorldBackground();
+        startBossIntro();
+      }
+    }
+  }
+  else if(gameState === STATE.VICTORY){
+    stateTimer++;
+    if(stateTimer > 60 && (Input.mouseClicked || Input.dashPressed)){
+      currentRushIndex = 0;
+      currentBossIndex = 0;
+      gameState = STATE.MENU;
+      stateTimer = 0;
+    }
+  }
+  else if(gameState === STATE.GAMEOVER){
+    stateTimer++;
+    if(stateTimer > 40 && (Input.mouseClicked || Input.dashPressed)){
+      if(livesRemaining > 0){
+        if(DIFFICULTY[currentDifficulty].checkpoints){
+          // Easy mode: retry the current boss instead of losing all progress
+          resetPlayer();
+          artifactCharge = 1;
+          startBossIntro();
+        } else {
+          // Standard/Hard: no checkpoint, so a life sends you back to boss 1
+          restartFromBeginning();
+        }
+      } else {
+        gameState = STATE.MENU;
+        stateTimer = 0;
+      }
+    }
+  }
+
+  endFrameInput();
+}
+
+// ================= MAIN DRAW =================
+function draw(){
+  CTX.save();
+  const [sx,sy] = shakeOffset();
+  CTX.clearRect(0,0,256,256);
+  CTX.translate(sx,sy);
+
+  if(gameState === STATE.INTRO){
+    drawIntro();
+  } else {
+  const rush = RUSHES[currentRushIndex];
+  drawBackground(rush);
+
+  if(gameState === STATE.MENU){
+    drawMenu();
+  } else if(gameState === STATE.SETTINGS){
+    drawSettings();
+  } else if(gameState === STATE.RUSH_SELECT){
+    drawRushSelect();
+  } else if(gameState === STATE.MUSIC_SELECT){
+    drawMusicSelect();
+  } else if(gameState === STATE.CHARACTER_SELECT){
+    drawCharacterSelect();
+  } else if(gameState === STATE.ARTIFACT_SELECT){
+    drawArtifactSelect();
+  } else {
+    drawEnemyBullets();
+    drawDaggers();
+    if(boss){
+      CTX.globalAlpha = boss.entranceAlpha !== undefined ? boss.entranceAlpha : 1;
+      boss.draw();
+      CTX.globalAlpha = 1;
+    }
+    drawPlayer();
+    drawParticles();
+    drawFloatTexts();
+    drawHUD();
+
+    if(gameState === STATE.BOSS_INTRO) drawBossIntroOverlay();
+    if(gameState === STATE.PHASE_TRANSITION) drawCenterText('PHASE CLEAR', PAL.yellow);
+    if(gameState === STATE.RUSH_COMPLETE) drawRushComplete();
+    if(gameState === STATE.VICTORY) drawCenterText('VICTORY!', PAL.yellow);
+    if(gameState === STATE.GAMEOVER) drawGameOver();
+  }
+  }
+
+  if(gamePaused){
+    CTX.fillStyle = 'rgba(0,0,0,0.7)';
+    CTX.fillRect(0,0,256,256);
+    CTX.fillStyle = PAL.white;
+    CTX.textAlign = 'center';
+    CTX.font = '14px monospace';
+    CTX.fillText('PAUSED', 128, 120);
+    CTX.font = '8px monospace';
+    CTX.fillText('TAP TO RESUME', 128, 140);
+    CTX.textAlign = 'left';
+  }
+
+  CTX.restore();
+}
+
+// ================= SAVE DATA =================
+// Progress and settings persist on the device between sessions.
+// Storage can be unavailable (private mode etc.), so every access is
+// wrapped -- the game simply runs without saving in that case.
+const SAVE_KEY = 'rogueDagger.save.v1';
+let pendingMusicTrack = null; // restored track waits for the first tap (iOS audio rule)
+function saveProgress(){
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      unlockedArtifacts, currentDifficulty, selectedRushIndex, selectedCharacter,
+      music: MUSIC_TRACKS[currentTrackId] ? currentTrackId : 'off'
+    }));
+  } catch(e){}
+}
+function loadProgress(){
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if(!d) return;
+    if(Array.isArray(d.unlockedArtifacts)) unlockedArtifacts = d.unlockedArtifacts.filter(k => ARTIFACTS[k]);
+    if(DIFFICULTY[d.currentDifficulty]) currentDifficulty = d.currentDifficulty;
+    if(RUSHES[d.selectedRushIndex]) selectedRushIndex = d.selectedRushIndex;
+    if(CHARACTERS[d.selectedCharacter]) selectedCharacter = d.selectedCharacter;
+    if(MUSIC_TRACKS[d.music]) pendingMusicTrack = d.music;
+  } catch(e){}
+}
+loadProgress();
+
+// ================= BACKGROUND / PAUSE =================
+// When the app is backgrounded (home button, phone call), stop the
+// music and freeze the fight behind a "tap to resume" screen.
+let gamePaused = false;
+let musicBeforePause = null;
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(gameState === STATE.PLAYING || gameState === STATE.BOSS_INTRO) gamePaused = true;
+    musicBeforePause = currentTrackId;
+    stopMusic();
+  } else {
+    if(musicBeforePause === 'custom') resumeCustomTrack();
+    else if(MUSIC_TRACKS[musicBeforePause]) playChiptune(musicBeforePause);
+    musicBeforePause = null;
+  }
+});
+
+// ================= MAIN LOOP =================
+// update() must run at a fixed rate, independent of the display's
+// actual refresh rate -- otherwise everything (boss movement, attack
+// timers, player speed) runs proportionally faster on high-refresh
+// monitors (120Hz/144Hz) than on standard 60Hz screens, since every
+// timer in the game advances by a fixed amount per update() call.
+const FIXED_DT_MS = 1000/60;
+let loopLastTime = null;
+let loopAccumulator = 0;
+function loop(now){
+  if(loopLastTime === null) loopLastTime = now;
+  let frameTime = now - loopLastTime;
+  loopLastTime = now;
+  if(frameTime > 250) frameTime = 250; // clamp huge gaps (tab switch, lag spike)
+  loopAccumulator += frameTime;
+  while(loopAccumulator >= FIXED_DT_MS){
+    update();
+    loopAccumulator -= FIXED_DT_MS;
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
