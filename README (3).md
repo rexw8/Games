@@ -10,12 +10,17 @@ Every game is a **single self-contained HTML file**. No installs, no build step,
 
 | Game | Genre | Status | Play |
 |---|---|---|---|
-| **Rogue Dagger** | Pixel-art bullet-hell boss rush | Playable | [`rogue-dagger/index.html`](rogue-dagger/index.html) |
+| **Rogue Dagger** | Pixel-art bullet-hell boss rush | Playable | [`Rogue Dagger/rogue-dagger.html`](Rogue%20Dagger/rogue-dagger.html) |
+| **Cozy Garden** | Cozy farming with light idle automation | Playable | [`Cozy Garden/cozy-garden.html`](Cozy%20Garden/cozy-garden.html) |
 | *Next game* | — | Coming soon | — |
 
 ### Rogue Dagger
 Fight through three themed rushes of three bosses each, as a dagger-throwing Rogue or a charge-blasting Wizard. Each boss has a themed entrance, three escalating phases and growing attack patterns. Includes Easy, Standard and one-life Hard modes, artifacts earned by clearing rushes, rush select, and chiptune music (or your own songs).
 **Controls:** left stick or WASD to move · hold on the screen or the mouse to attack · DASH or Space · USE or E for your artifact.
+
+### Cozy Garden
+Plant, water and harvest clay crops on a tilted toy-diorama plot, then grow it from a 3×3 patch into an automated 8×8 garden. Fill villagers' orders, chase rare golden crops, collect 12 Curios with side effects, and build sprinklers, auto-planters and tractors. A soft rain keeps the garden growing for up to 8 hours while you're away, and a daily gift rewards your visit streak.
+**Controls:** tap or click soil to plant · tap a plant to water it · tap a glowing plant to harvest.
 
 <!-- Copy this block for each new game:
 ### Game Name
@@ -28,20 +33,24 @@ One or two sentences on what it is and what makes it fun.
 ## Playing
 
 1. Open the game's folder.
-2. Open its `index.html` in a browser. On a phone, save the file and open it from your Files app or browser.
+2. Open its `.html` file in a browser. On a phone, save the file and open it from your Files app or browser.
 
 That's it. Progress and settings save in your browser, on your device only.
 
 ## Repository layout
 
 ```
-daggers-edge-games/
-├── README.md              ← this file
-├── rogue-dagger/
-│   ├── index.html         ← the whole game
-│   └── README.md          ← features, controls, how the code is organized
-└── <next-game>/
-    ├── index.html
+Games/
+├── README.md                  ← this file
+├── Rogue Dagger/
+│   ├── rogue-dagger.html      ← the whole game
+│   ├── RogueDagger-iOS.zip    ← iOS app wrapper
+│   └── README.md              ← features, controls, how the code is organized
+├── Cozy Garden/
+│   ├── cozy-garden.html       ← the whole game
+│   └── README.md
+└── <Next Game>/
+    ├── <next-game>.html
     └── README.md
 ```
 
