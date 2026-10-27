@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  [hidden] { display: none !important; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  img { max-width: 100%; }
+</style>
+<title>Cozy Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800&display=swap">
+<style>
+  /* Layout: a clay toy diorama. The plot is a tilted grass slab with soil mounds and upright clay crops; every control is a puffy pressable clay piece. Dusk diorama in dark mode. */
+  :root {
+    --sky-1: #9fd4ef; --sky-2: #cdeaf2; --sky-3: #e6f3d8;
+    --card: #fbf6ef; --panel: #ffffff; --ink: #463a5a; --ink-soft: #7d7190;
+    --grass: #8fcf6e; --grass-side: #5f9f4a; --soil: #a86d45; --soil-wet: #7a4a2e;
+    --sage: #7cc48f; --butter: #ffd36b; --coral: #ff8f7a; --lilac: #b39cf2; --aqua: #6fcdc3; --gold: #f5c542; --water: #5cc0f0;
+    --on-color: #3b2f4d; --shadow: rgba(70,50,100,.2); --veil: rgba(40,30,60,.45); --badge: #ff6b6b; --cloud: #ffffff;
+    --tilt: 26deg;
+    --font-display: "Baloo 2", "Trebuchet MS", sans-serif;
+    --font-body: "Nunito", "Trebuchet MS", "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --sky-1: #161b38; --sky-2: #252c52; --sky-3: #33405a;
+    --card: #2c2940; --panel: #37334f; --ink: #efe9ff; --ink-soft: #b7add2;
+    --grass: #5b9a4f; --grass-side: #3b6834; --soil: #87553a; --soil-wet: #5e3a25;
+    --sage: #66b07b; --butter: #e9be55; --coral: #ea7c6c; --lilac: #9d86e0; --aqua: #4fb5aa; --gold: #e6b83c; --water: #4aa8d8;
+    --on-color: #241d33; --shadow: rgba(0,0,0,.42); --veil: rgba(0,0,0,.6); --badge: #ff7a7a; --cloud: #8d93bd;
+    color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --sky-1: #161b38; --sky-2: #252c52; --sky-3: #33405a;
+    --card: #2c2940; --panel: #37334f; --ink: #efe9ff; --ink-soft: #b7add2;
+    --grass: #5b9a4f; --grass-side: #3b6834; --soil: #87553a; --soil-wet: #5e3a25;
+    --sage: #66b07b; --butter: #e9be55; --coral: #ea7c6c; --lilac: #9d86e0; --aqua: #4fb5aa; --gold: #e6b83c; --water: #4aa8d8;
+    --on-color: #241d33; --shadow: rgba(0,0,0,.42); --veil: rgba(0,0,0,.6); --badge: #ff7a7a; --cloud: #8d93bd;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--sky-2); }
+  body {
+    margin: 0; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    padding-block: 14px 30px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    font-family: var(--font-body); font-size: 14px; font-weight: 600; color: var(--ink);
+    background: linear-gradient(var(--sky-1) 0%, var(--sky-2) 50%, var(--sky-3) 100%) fixed;
+    overflow-x: hidden;
+  }
+  button { font-family: inherit; color: inherit; }
+  button:focus-visible, select:focus-visible { outline: 3px solid var(--water); outline-offset: 2px; }
+
+  /* clay pieces: a light top lip, a darker underside, and a short slab shadow give each one thickness */
+  .clay {
+    --c: var(--panel);
+    background: radial-gradient(120% 90% at 30% 15%, color-mix(in srgb, var(--c) 82%, white), var(--c) 55%, color-mix(in srgb, var(--c) 90%, black));
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.55), inset 0 -3px 2px color-mix(in srgb, var(--c) 70%, black 30%),
+      0 4px 0 color-mix(in srgb, var(--c) 62%, black), 0 8px 14px var(--shadow);
+    border: 0; border-radius: 16px;
+  }
+  button.clay { cursor: pointer; transition: transform .08s, box-shadow .08s, filter .15s; }
+  button.clay:hover:not(:disabled) { filter: brightness(1.05); }
+  button.clay:active:not(:disabled) { transform: translateY(3px);
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.5), inset 0 -2px 2px color-mix(in srgb, var(--c) 70%, black 30%), 0 1px 0 color-mix(in srgb, var(--c) 62%, black), 0 3px 6px var(--shadow); }
+  button.clay:disabled { cursor: default; filter: grayscale(.65) opacity(.6); }
+
+  .cloud { position: fixed; top: 7%; width: 120px; height: 38px; border-radius: 40px; background: var(--cloud); opacity: .85;
+    box-shadow: 26px -18px 0 4px var(--cloud), 60px -6px 0 2px var(--cloud), inset 0 -6px 0 rgba(120,140,180,.2);
+    animation: drift 90s linear infinite; pointer-events: none; }
+  .cloud.c2 { top: 18%; transform: scale(.7); animation-duration: 130s; animation-delay: -60s; opacity: .7; }
+  @keyframes drift { from { left: -180px; } to { left: 105%; } }
+
+  #game { --c: var(--card); width: 100%; max-width: 460px; padding: 16px 14px 18px; border-radius: 30px; position: relative; z-index: 1; }
+  h1 { margin: 0; text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 34px; line-height: 1.1; letter-spacing: .5px;
+    color: var(--sage); text-shadow: 0 2px 0 color-mix(in srgb, var(--sage) 55%, black), 0 5px 8px var(--shadow); }
+  .sub { text-align: center; font-size: 13px; color: var(--ink-soft); margin: 4px 0 12px; min-height: 36px; line-height: 1.4; }
+  .top { display: flex; align-items: center; margin-bottom: 12px; gap: 7px; }
+  .pill { --c: var(--panel); display: flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 11px 3px 4px; font-weight: 800; font-size: 15px;
+    font-variant-numeric: tabular-nums; white-space: nowrap; transition: transform .15s; }
+  .pill .spr { width: 26px; height: 26px; }
+  .pill.grow { flex: 1; min-width: 0; overflow: hidden; }
+  .pill.bump { transform: scale(1.1); }
+  .iconbtn { --c: var(--panel); width: 38px; height: 34px; border-radius: 999px; font-size: 15px; padding: 0; }
+  #sel { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 13px; font-weight: 800; margin: 2px 0 6px; min-height: 22px; color: var(--ink-soft); }
+  #sel.placing { color: var(--aqua); }
+  #lvl { margin-bottom: 8px; }
+  #lvl .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 800; margin-bottom: 4px; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  #lvl .row span:first-child { font-family: var(--font-display); font-size: 18px; color: var(--ink); }
+  #lvl .track { --c: var(--panel); height: 16px; border-radius: 999px; padding: 3px; box-shadow: inset 0 2px 4px var(--shadow), 0 2px 0 rgba(255,255,255,.4); background: color-mix(in srgb, var(--panel) 80%, var(--ink) 8%); }
+  #lvl .fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(var(--butter), color-mix(in srgb, var(--butter) 70%, var(--coral)));
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.55); transition: width .3s; }
+  #nextUnlock { margin-top: 5px; font-size: 11px; color: var(--ink-soft); text-align: center; min-height: 14px; }
+
+  /* the diorama */
+  #stage { perspective: 1000px; perspective-origin: 50% -20%; padding: 26px 2px 0; margin-bottom: 18px; }
+  #plot { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 7px; padding: 12px; position: relative;
+    transform: rotateX(var(--tilt)); transform-origin: 50% 100%; transform-style: preserve-3d; border-radius: 24px;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,.18) 0 3px, transparent 4px) 0 0 / 34px 34px,
+      radial-gradient(circle at 70% 70%, rgba(0,0,0,.08) 0 3px, transparent 4px) 0 0 / 28px 28px,
+      radial-gradient(120% 90% at 30% 10%, color-mix(in srgb, var(--grass) 80%, white), var(--grass) 60%);
+    box-shadow: inset 0 3px 1px rgba(255,255,255,.45), inset 0 -4px 3px rgba(0,0,0,.12), 0 16px 0 var(--grass-side), 0 18px 0 color-mix(in srgb, var(--grass-side) 70%, black), 0 30px 30px var(--shadow); }
+  .tile { position: relative; aspect-ratio: 1; max-width: 100%; border-radius: 32%; cursor: pointer; user-select: none; transform-style: preserve-3d; transition: transform .15s;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.1) 0 3px, transparent 3px 9px),
+      radial-gradient(110% 100% at 32% 25%, color-mix(in srgb, var(--soil) 72%, white), var(--soil) 50%, color-mix(in srgb, var(--soil) 72%, black));
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.3), inset 0 -3px 2px rgba(0,0,0,.2), 0 5px 0 color-mix(in srgb, var(--soil) 58%, black), 0 7px 8px rgba(0,0,0,.25); }
+  .tile:hover { transform: translateZ(5px); }
+  .tile:active { transform: translateZ(1px); }
+  .tile.wet { background:
+      radial-gradient(40% 22% at 30% 25%, rgba(255,255,255,.35), transparent 70%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 3px, transparent 3px 9px),
+      radial-gradient(110% 100% at 32% 25%, color-mix(in srgb, var(--soil-wet) 75%, white), var(--soil-wet) 50%, color-mix(in srgb, var(--soil-wet) 70%, black));
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.3), inset 0 -3px 2px rgba(0,0,0,.25), 0 5px 0 color-mix(in srgb, var(--soil-wet) 58%, black), 0 7px 8px rgba(0,0,0,.25); }
+  .tile.locked { cursor: not-allowed; background: radial-gradient(110% 100% at 32% 25%, color-mix(in srgb, var(--grass-side) 75%, white), var(--grass-side) 60%);
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.3), 0 4px 0 color-mix(in srgb, var(--grass-side) 60%, black); }
+  .tile.locked:hover { transform: none; }
+  .tile .lv { position: absolute; left: 50%; bottom: 6%; transform: translateX(-50%) translateZ(1px); font-size: 10px; font-weight: 800; color: #fff;
+    background: rgba(0,0,0,.28); padding: 0 6px; border-radius: 999px; white-space: nowrap; }
+  .tile.struct { background: radial-gradient(110% 100% at 32% 25%, #e3e6ee, #b8bfcc 55%, #8f97a8);
+    box-shadow: inset 0 2px 1px rgba(255,255,255,.6), 0 5px 0 #747c8d, 0 7px 8px rgba(0,0,0,.25); }
+  .tile.struct.picked { outline: 3px solid var(--butter); outline-offset: 2px; }
+  .tile.spray { animation: spray .6s ease-out; }
+  @keyframes spray { 30% { box-shadow: 0 0 0 6px rgba(110,200,240,.55), 0 5px 0 #747c8d; } }
+  .tile.ripe { animation: glow 1.6s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: inset 0 2px 1px rgba(255,255,255,.3), 0 5px 0 color-mix(in srgb, var(--soil) 58%, black), 0 0 0 4px color-mix(in srgb, var(--butter) 75%, transparent), 0 0 18px 4px color-mix(in srgb, var(--butter) 70%, transparent); } }
+
+  /* crops stand upright: counter-rotate against the tilted plot */
+  .tile .crop { position: absolute; left: 50%; bottom: 16%; width: var(--cw, 100%); transform-origin: 50% 100%;
+    transform: translateX(-50%) rotateX(calc(var(--tilt) * -1)); }
+  .tile .crop .spr { display: block; width: 100%; height: auto; transform-origin: 50% 92%; }
+  .tile .crop .fb { display: block; text-align: center; font-size: calc(min(100vw - 100px, 400px) * .45 / var(--n, 5)); line-height: 1; }
+  .tile.ripe .crop .spr { animation: bob 1.6s ease-in-out infinite; }
+  .tile.thirsty .crop .spr { animation: droop 1.4s ease-in-out infinite; filter: saturate(.6) brightness(.95); }
+  @keyframes bob { 50% { transform: translateY(-4%) scale(1.04, .97); } }
+  @keyframes droop { 50% { transform: rotate(-7deg) scaleY(.95); } }
+  .tile.gold .crop .spr { filter: sepia(1) saturate(3.2) hue-rotate(-12deg) brightness(1.12) drop-shadow(0 0 6px rgba(255,210,80,.9)); }
+  .tile.special { box-shadow: inset 0 2px 1px rgba(255,255,255,.3), 0 5px 0 color-mix(in srgb, var(--soil) 58%, black), 0 0 0 3px var(--gold), 0 7px 8px rgba(0,0,0,.25); }
+  .tile .star { position: absolute; right: 6%; top: 4%; font-size: 13px; color: var(--gold); text-shadow: 0 0 4px rgba(255,220,120,.9); transform: translateZ(2px); animation: twinkle 1.8s ease-in-out infinite; }
+  @keyframes twinkle { 50% { opacity: .35; } }
+  .tile .bar, .tile .water { position: absolute; left: 14%; right: 14%; height: 5px; border-radius: 999px; background: rgba(0,0,0,.25); overflow: hidden; transform: translateZ(1px); }
+  .tile .bar { top: 7%; } .tile .water { bottom: 7%; }
+  .tile .bar i, .tile .water i { display: block; height: 100%; border-radius: 999px; }
+  .tile .bar i { background: var(--butter); } .tile .water i { background: var(--water); }
+  .tile.ripe .bar, .tile.ripe .water { opacity: 0; }
+
+  #tractors { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
+  .tractor { position: absolute; width: calc(100% / var(--n, 5) * 1.05); transform: translate(-50%, -78%) translateZ(4px); transform-style: preserve-3d;
+    transition: left .26s linear, top .26s linear; }
+  .tractor .spr { display: block; width: 100%; transform-origin: 50% 100%; transform: rotateX(calc(var(--tilt) * -1)) scaleX(var(--flip, 1)); }
+  .tractor .fb { font-size: 26px; }
+
+  .tools { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .tools button { padding: 8px 13px; font-weight: 800; font-size: 13px; color: var(--on-color); }
+  #waterAll { --c: var(--water); } #harvestAll { --c: var(--butter); } #plantAll { --c: var(--sage); }
+
+  /* tabs and panels */
+  .tabs { display: flex; gap: 6px; margin-top: 18px; }
+  .tab { --c: var(--panel); flex: 1; min-width: 0; font-weight: 800; font-size: 12.5px; padding: 8px 2px 9px; border-radius: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-soft); }
+  .tab.on { color: var(--on-color); transform: translateY(2px); }
+  .tab.seeds.on { --c: var(--sage); } .tab.journal.on { --c: var(--butter); } .tab.curio.on { --c: var(--lilac); } .tab.workshop.on { --c: var(--aqua); }
+  .tab .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 3px; border-radius: 999px; background: var(--badge); color: #fff; font-size: 11px; line-height: 18px; box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  .panel { margin-top: 10px; padding: 10px; border-radius: 20px; box-shadow: inset 0 3px 8px var(--shadow); }
+  .panel.seeds { background: color-mix(in srgb, var(--sage) 20%, var(--card)); }
+  .panel.journal { background: color-mix(in srgb, var(--butter) 18%, var(--card)); }
+  .panel.curio { background: color-mix(in srgb, var(--lilac) 20%, var(--card)); }
+  .panel.workshop { background: color-mix(in srgb, var(--aqua) 18%, var(--card)); }
+
+  #menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .seed { --c: var(--panel); padding: 6px 4px 8px; text-align: center; min-width: 0; border-radius: 18px; }
+  .seed .e { display: block; height: 52px; }
+  .seed .e .spr { width: 56px; height: 56px; margin: -4px auto 0; display: block; }
+  .seed .e .fb { font-size: 30px; }
+  .seed .n { font-size: 13px; font-weight: 800; display: block; font-family: var(--font-display); line-height: 1.2; }
+  .seed .c { font-size: 11px; color: var(--ink-soft); display: block; font-variant-numeric: tabular-nums; }
+  .seed.sel { --c: var(--butter); color: var(--on-color); }
+  .seed.sel .c { color: var(--on-color); opacity: .8; }
+  .seed.poor { opacity: .55; }
+  .seed.locked { opacity: .6; }
+  .seed.locked .e .spr { width: 40px; height: 40px; margin-top: 6px; }
+
+  .curio-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin: 2px 2px 10px; font-weight: 800; color: var(--ink-soft); }
+  .curio-head button { --c: var(--panel); font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 12px; }
+  .offer { --c: var(--panel); display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 6px; margin-bottom: 10px; border-radius: 18px; }
+  .offer .e { flex: none; width: 56px; height: 56px; }
+  .offer .e .spr { width: 100%; height: 100%; display: block; }
+  .offer .e .fb { font-size: 34px; }
+  .offer .info { flex: 1; min-width: 0; }
+  .offer .n { font-weight: 800; font-size: 15px; font-family: var(--font-display); line-height: 1.2; }
+  .offer .d { font-size: 11.5px; line-height: 1.35; color: var(--ink-soft); margin: 2px 0; }
+  .offer .m { font-size: 11px; color: var(--ink-soft); }
+  .offer .btns { display: flex; flex-direction: column; gap: 6px; }
+  .offer button.buy, .offer .btns button { --c: var(--lilac); font-weight: 800; font-size: 12px; padding: 7px 10px; border-radius: 12px; white-space: nowrap; color: var(--on-color); }
+  .offer.ws .btns button { --c: var(--aqua); }
+  .offer.ws button.place { --c: var(--butter); }
+  .offer.ws button.place.on { --c: var(--sage); }
+  .offer.ws.locked { opacity: .6; }
+  .offer.ws .seg { display: flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12px; flex-wrap: wrap; }
+  .offer.ws .seg button { --c: var(--panel); padding: 3px 8px; font-size: 11px; font-weight: 800; border-radius: 10px; }
+  .offer.ws .seg button.on { --c: var(--aqua); color: var(--on-color); }
+  .offer.ws .pl { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 6px; }
+  .offer.ws select { font-family: inherit; font-weight: 700; font-size: 12px; padding: 4px 6px; border: 0; border-radius: 10px; background: var(--card); color: var(--ink); max-width: 100%; min-width: 0; box-shadow: inset 0 2px 4px var(--shadow); }
+  .nextcurio { margin-top: 2px; font-size: 11px; text-align: center; color: var(--ink-soft); }
+
+  /* journal */
+  .jhead { font-family: var(--font-display); font-weight: 800; font-size: 18px; margin: 2px 2px 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .jhead small { font-family: var(--font-body); font-size: 11px; color: var(--ink-soft); font-weight: 800; }
+  .order { --c: var(--panel); padding: 8px 10px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center; border-radius: 18px; }
+  .order.ready { --c: color-mix(in srgb, var(--butter) 45%, var(--panel)); }
+  .order.waiting { --c: var(--card); justify-content: center; font-size: 12px; font-weight: 800; color: var(--ink-soft); min-height: 56px; box-shadow: inset 0 2px 6px var(--shadow); }
+  .order .face { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 26px;
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--coral) 55%, white), var(--coral)); box-shadow: inset 0 -3px 2px rgba(0,0,0,.15), 0 3px 0 color-mix(in srgb, var(--coral) 60%, black); }
+  .order .who { font-weight: 800; font-size: 14px; font-family: var(--font-display); line-height: 1.2; }
+  .order .wants { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+  .chip { display: inline-flex; align-items: center; gap: 2px; background: var(--card); border-radius: 999px; padding: 1px 8px 1px 2px; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: inset 0 1px 3px var(--shadow); }
+  .chip.done { background: var(--sage); color: var(--on-color); }
+  .spr.mini { width: 22px; height: 22px; vertical-align: -6px; }
+  .fb.mini { font-size: 14px; }
+  .order .rw { font-size: 11.5px; color: var(--ink-soft); display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+  .order .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .order .give { --c: var(--sage); font-weight: 800; font-size: 12px; padding: 7px 10px; border-radius: 12px; color: var(--on-color); white-space: nowrap; }
+  .order .skip { background: transparent; border: 0; color: var(--ink-soft); font-weight: 800; font-size: 11px; cursor: pointer; padding: 2px; text-decoration: underline; }
+  .goals { display: grid; gap: 7px; margin-bottom: 14px; }
+  .goal { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 14px; background: var(--card); font-size: 12px; box-shadow: inset 0 2px 4px var(--shadow); }
+  .goal.ready { background: color-mix(in srgb, var(--butter) 40%, var(--card)); box-shadow: 0 3px 0 color-mix(in srgb, var(--butter) 55%, black); }
+  .goal .gi { font-size: 20px; width: 24px; text-align: center; }
+  .goal .gt { flex: 1; min-width: 0; color: var(--ink-soft); }
+  .goal .gt b { font-size: 13px; color: var(--ink); }
+  .goal button { --c: var(--sage); font-weight: 800; font-size: 12px; padding: 6px 10px; border-radius: 10px; color: var(--on-color); }
+  .goal .pr { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--ink-soft); }
+  .almanac { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .alm { text-align: center; background: var(--card); border-radius: 14px; padding: 3px 2px 4px; min-width: 0; box-shadow: inset 0 2px 4px var(--shadow); }
+  .alm .ae { display: block; height: 40px; }
+  .alm .ae .spr { width: 42px; height: 42px; display: block; margin: -2px auto 0; }
+  .alm .ae .fb { font-size: 22px; }
+  .alm .ae .spr.mystery { filter: brightness(0) opacity(.22); }
+  .alm .an { font-size: 10.5px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  .resetrow { text-align: center; margin-top: 14px; }
+  .resetbtn { background: transparent; border: 0; color: var(--ink-soft); font-weight: 800; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 4px 8px; border-radius: 10px; }
+  .resetbtn.armed { background: var(--badge); color: #fff; text-decoration: none; }
+
+  #satchel { margin-top: 12px; }
+  #satchel h3 { margin: 0 0 8px; font-size: 15px; font-family: var(--font-display); }
+  #satchel .row { display: flex; flex-wrap: wrap; gap: 7px; }
+  .bag { --c: var(--panel); font-weight: 800; font-size: 13px; padding: 3px 10px 3px 4px; border-radius: 999px; display: inline-flex; align-items: center; gap: 3px; }
+  .bag.sel { --c: var(--butter); color: var(--on-color); }
+
+  #structBar { --c: var(--panel); margin-top: 4px; padding: 9px 12px; font-size: 12px; line-height: 1.4; border-radius: 16px; }
+  #structBar .h { font-weight: 800; font-size: 15px; font-family: var(--font-display); }
+  #structBar button { --c: var(--sage); font-weight: 800; font-size: 12px; padding: 5px 11px; margin: 8px 6px 2px 0; border-radius: 10px; color: var(--on-color); }
+  .hint { margin-top: 14px; font-size: 12px; text-align: center; color: var(--ink-soft); line-height: 1.5; }
+
+  .float { position: fixed; pointer-events: none; font-weight: 800; font-size: 17px; color: var(--ink); font-family: var(--font-display);
+    text-shadow: 0 1px 0 var(--card), 0 0 6px var(--card), 0 0 2px var(--card); animation: rise 1s ease-out forwards; z-index: 30; white-space: nowrap; transform: translateX(-30%); }
+  @keyframes rise { to { translate: 0 -50px; opacity: 0; } }
+  .spark { position: fixed; pointer-events: none; z-index: 29; font-size: 16px; color: var(--gold); animation: spark .7s ease-out forwards; }
+  @keyframes spark { to { transform: translate(var(--dx), var(--dy)) scale(.4); opacity: 0; } }
+
+  #modal { position: fixed; inset: 0; z-index: 50; background: var(--veil); display: flex; align-items: center; justify-content: center;
+    padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+  .sheet { --c: var(--card); width: 100%; max-width: 360px; padding: 18px 20px 20px; text-align: center; border-radius: 28px; animation: pop .35s cubic-bezier(.3,1.5,.6,1); }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } }
+  .sheet h2 { font-family: var(--font-display); font-weight: 800; font-size: 26px; margin: 0 0 4px; line-height: 1.15; text-wrap: balance; }
+  .sheet .big .spr { width: 84px; height: 84px; display: block; margin: -6px auto 0; }
+  .sheet .big .fb { font-size: 40px; }
+  .sheet ul { text-align: left; padding: 0; margin: 12px 0 18px; list-style: none; display: grid; gap: 8px; }
+  .sheet li { background: var(--panel); border-radius: 14px; padding: 8px 11px; font-size: 13px; line-height: 1.4; box-shadow: inset 0 2px 4px var(--shadow); }
+  .sheet button { --c: var(--sage); font-weight: 800; font-size: 16px; padding: 10px 22px; border-radius: 16px; color: var(--on-color); font-family: var(--font-display); }
+
+  @media (max-width: 380px) { .almanac { grid-template-columns: repeat(4, 1fr); } .tab { font-size: 11px; } h1 { font-size: 30px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cloud, .tile.ripe, .tile .crop .spr, .tile .star, .spark, .sheet { animation: none !important; }
+    .tractor { transition: none; }
+  }
+</style>
+
+</head>
+<body>
+<div class="cloud"></div><div class="cloud c2"></div>
+<div id="game" class="clay">
+  <h1>Cozy Garden</h1>
+  <div class="sub" id="msg">Pick a seed, then tap a plot to plant it.</div>
+  <div class="top">
+    <div class="pill clay grow" id="coins"><span class="pi" data-art="coin"></span><span id="coinsN">0</span></div>
+    <div class="pill clay" id="count"><span class="pi" data-art="basket"></span><span id="countN">0</span></div>
+    <div class="pill clay" id="streak" title="Daily visit streak"><span class="pi" data-art="flame"></span><span id="streakN">1</span></div>
+    <button class="iconbtn clay" id="sound" aria-label="Toggle sound">🔊</button>
+  </div>
+  <div id="lvl">
+    <div class="row"><span id="lvlName">Level 1</span><span id="lvlInfo"></span></div>
+    <div class="track"><div class="fill" id="lvlFill"></div></div>
+    <div id="nextUnlock"></div>
+  </div>
+  <div id="stage"><div id="plot"></div></div>
+  <div id="sel"></div>
+  <div class="tools"><button class="clay" id="waterAll">Water all</button><button class="clay" id="harvestAll">Harvest all</button><button class="clay" id="plantAll">Plant all</button></div>
+  <div id="structBar" class="clay" hidden></div>
+
+  <div class="tabs">
+    <button class="tab clay seeds on" data-tab="seeds">Seeds</button>
+    <button class="tab clay journal" data-tab="journal">Journal</button>
+    <button class="tab clay curio" data-tab="curio">Curios</button>
+    <button class="tab clay workshop" data-tab="workshop">Workshop</button>
+  </div>
+  <div class="panel seeds" id="panel-seeds"><div id="menu"></div></div>
+  <div class="panel journal" id="panel-journal" hidden></div>
+  <div class="panel curio" id="panel-curio" hidden></div>
+  <div class="panel workshop" id="panel-workshop" hidden></div>
+
+  <div id="satchel" hidden></div>
+
+  <div class="hint">Tap empty soil to plant · tap a plant to water it · tap a glowing plant to harvest.<br>Plants grow while the soil is damp, and a soft rain keeps them growing while you're away.</div>
+</div>
+<div id="modal" hidden></div>
+
+<script>
+// Clay sprite set: every sprite is drawn once on a 128px canvas with soft clay shading.
+function buildArt(newCanvas) {
+  const S = 128, PI = Math.PI, TAU = PI * 2;
+  const hx = c => { const n = parseInt(c.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; };
+  const sh = (c, a) => { const [r, g, b] = hx(c), t = a < 0 ? 0 : 255, p = Math.abs(a);
+    return `rgb(${Math.round(r + (t - r) * p)},${Math.round(g + (t - g) * p)},${Math.round(b + (t - b) * p)})`; };
+  const circ = (x, y, r) => g => g.arc(x, y, r, 0, TAU);
+  const ell = (x, y, rx, ry, a = 0) => g => g.ellipse(x, y, rx, ry, a, 0, TAU);
+  const rr = (x, y, w, h, r) => g => { g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const drop = (x, y, r) => g => { g.moveTo(x, y - r * 1.8); g.quadraticCurveTo(x + r, y - r * .7, x + r, y); g.arc(x, y, r, 0, PI);
+    g.quadraticCurveTo(x - r, y - r * .7, x, y - r * 1.8); };
+
+  // Fill a path with clay: soft light from the upper left, a darker rim, a pressed-in highlight and a small cast shadow.
+  function clay(g, path, col, cx, cy, r, o = {}) {
+    g.save();
+    g.beginPath(); path(g);
+    const gr = g.createRadialGradient(cx - r * .35, cy - r * .45, r * .05, cx, cy, r * 1.2);
+    gr.addColorStop(0, sh(col, .42)); gr.addColorStop(.5, col); gr.addColorStop(1, sh(col, -.38));
+    g.fillStyle = gr;
+    if (!o.flat) { g.shadowColor = 'rgba(40,20,50,.3)'; g.shadowBlur = 5; g.shadowOffsetY = 2.5; }
+    g.fill();
+    g.shadowColor = 'rgba(0,0,0,0)'; g.shadowBlur = 0; g.shadowOffsetY = 0;
+    g.lineWidth = o.lw || 2.2; g.strokeStyle = sh(col, -.5); g.globalAlpha = .45; g.stroke(); g.globalAlpha = 1;
+    g.clip();
+    const hl = g.createRadialGradient(cx - r * .4, cy - r * .5, 0, cx - r * .4, cy - r * .5, r * .62);
+    hl.addColorStop(0, 'rgba(255,255,255,.55)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; g.fillRect(0, 0, S, S);
+    g.restore();
+  }
+  function shadow(g, cx = 64, w = 34, y = 117) {
+    g.save(); g.translate(cx, y); g.scale(1, .3);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, w);
+    gr.addColorStop(0, 'rgba(35,20,40,.4)'); gr.addColorStop(1, 'rgba(35,20,40,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, w, 0, TAU); g.fill(); g.restore();
+  }
+  const leafPath = (x, y, len, wid, ang) => g => {
+    const s = Math.sin(ang), c = Math.cos(ang), tx = x + s * len, ty = y - c * len, mx = x + s * len * .5, my = y - c * len * .5;
+    g.moveTo(x, y); g.quadraticCurveTo(mx + c * wid, my + s * wid, tx, ty); g.quadraticCurveTo(mx - c * wid, my - s * wid, x, y);
+  };
+  function leaf(g, x, y, len, wid, ang, col, vein = true) {
+    const s = Math.sin(ang), c = Math.cos(ang);
+    clay(g, leafPath(x, y, len, wid, ang), col, x + s * len * .5, y - c * len * .5, len * .6);
+    if (!vein) return;
+    g.save(); g.strokeStyle = sh(col, -.35); g.globalAlpha = .45; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(x + s * len * .12, y - c * len * .12); g.lineTo(x + s * len * .78, y - c * len * .78); g.stroke(); g.restore();
+  }
+  function stem(g, x1, y1, x2, y2, w = 7, col = '#5aa34a', bend = 0) {
+    const mx = (x1 + x2) / 2 + bend, my = (y1 + y2) / 2;
+    g.save();
+    g.strokeStyle = sh(col, -.4); g.lineWidth = w + 2.5; g.beginPath(); g.moveTo(x1, y1); g.quadraticCurveTo(mx, my, x2, y2); g.stroke();
+    g.strokeStyle = col; g.lineWidth = w; g.stroke();
+    g.strokeStyle = sh(col, .4); g.lineWidth = Math.max(1, w * .3); g.globalAlpha = .7;
+    g.beginPath(); g.moveTo(x1 - w * .22, y1); g.quadraticCurveTo(mx - w * .22, my, x2 - w * .22, y2); g.stroke();
+    g.restore();
+  }
+  function dots(g, pts, col, r = 2.2) { g.save(); g.fillStyle = col; pts.forEach(([x, y]) => { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }); g.restore(); }
+  function shine(g, x, y, r) { g.save(); g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(x, y, r, r * .6, -.6, 0, TAU); g.fill(); g.restore(); }
+  function mound(g, w = 20) { clay(g, ell(64, 110, w, w * .38), '#8f5d3c', 64, 109, w); }
+  const G = '#6cc25a', G2 = '#5aa34a';
+
+  const D = {
+    sprout: g => { shadow(g, 64, 22); mound(g, 18); stem(g, 64, 108, 64, 84, 4, G2); leaf(g, 64, 86, 24, 11, -1.05, '#7bd35f'); leaf(g, 64, 86, 24, 11, 1.05, '#7bd35f'); },
+    young: g => { shadow(g, 64, 30); mound(g, 22); stem(g, 64, 108, 64, 56, 5, G2);
+      [[-1.25, 98, 30], [1.25, 94, 30], [-.9, 80, 28], [.9, 76, 28], [0, 60, 24]].forEach(([a, y, l]) => leaf(g, 64, y, l, 11, a, G)); },
+
+    carrot: g => { shadow(g, 64, 26);
+      leaf(g, 62, 48, 36, 9, -.45, G); leaf(g, 64, 48, 42, 9, .05, '#5fb64e'); leaf(g, 66, 48, 34, 9, .55, G);
+      clay(g, g => { g.moveTo(40, 52); g.bezierCurveTo(38, 38, 90, 38, 88, 52); g.quadraticCurveTo(82, 86, 66, 112); g.quadraticCurveTo(63, 116, 60, 111); g.quadraticCurveTo(46, 86, 40, 52); }, '#f58a3a', 60, 64, 36);
+      g.save(); g.strokeStyle = 'rgba(150,60,10,.45)'; g.lineWidth = 2;
+      [[48, 64, 70], [53, 78, 74], [57, 92, 72]].forEach(([a, y, b]) => { g.beginPath(); g.moveTo(a, y); g.quadraticCurveTo((a + b) / 2, y + 3, b - 6, y); g.stroke(); }); g.restore(); },
+    strawberry: g => { shadow(g, 64, 30);
+      clay(g, g => { g.moveTo(64, 112); g.bezierCurveTo(26, 92, 28, 46, 64, 48); g.bezierCurveTo(100, 46, 102, 92, 64, 112); }, '#ec3f50', 60, 72, 38);
+      dots(g, [[50, 64], [64, 62], [78, 64], [44, 78], [57, 76], [71, 76], [84, 78], [50, 90], [64, 90], [78, 90], [57, 101], [71, 101]], '#ffe27a', 2.3);
+      for (let k = 0; k < 5; k++) leaf(g, 64, 50, 19, 7, -1.6 + k * .8, G, false);
+      stem(g, 64, 48, 67, 30, 5, '#4f9a3f'); },
+    tomato: g => { shadow(g, 64, 40);
+      clay(g, ell(64, 80, 42, 34), '#ee4a36', 62, 76, 42);
+      g.save(); g.strokeStyle = 'rgba(140,20,10,.3)'; g.lineWidth = 2;
+      [46, 82].forEach(x => { g.beginPath(); g.moveTo(x, 52); g.quadraticCurveTo(x + (x < 64 ? -10 : 10), 80, x, 108); g.stroke(); }); g.restore();
+      for (let k = 0; k < 6; k++) leaf(g, 64, 50, 17, 6, k * 1.047, '#5bb04a', false);
+      stem(g, 64, 50, 68, 34, 5, '#4f9a3f'); shine(g, 46, 66, 6); },
+    sunflower: g => { shadow(g, 64, 24); stem(g, 64, 114, 64, 60, 8, G2);
+      leaf(g, 62, 98, 30, 11, -1.1, G); leaf(g, 66, 88, 28, 11, 1.15, G);
+      for (let k = 0; k < 14; k++) { const a = k / 14 * TAU, x = 64 + Math.cos(a) * 25, y = 44 + Math.sin(a) * 25;
+        clay(g, ell(x, y, 13, 7, a), '#ffc83a', x, y, 12, { flat: true, lw: 1.6 }); }
+      clay(g, circ(64, 44, 18), '#7b4a24', 64, 44, 18);
+      const pts = []; for (let k = 0; k < 12; k++) { const a = k * 2.4, r = Math.sqrt(k + 1) * 3.8; pts.push([64 + Math.cos(a) * r, 44 + Math.sin(a) * r]); }
+      dots(g, pts, 'rgba(255,220,150,.55)', 1.7); },
+    lavender: g => { shadow(g, 64, 28);
+      const sp = [[44, 46], [64, 34], [84, 46]];
+      sp.forEach(([x, y]) => stem(g, 64, 114, x, y + 16, 4, '#6aa85a'));
+      sp.forEach(([x, y]) => { for (let k = 0; k < 7; k++) { const yy = y - 8 + k * 7, xx = x + (k % 2 ? 3 : -3);
+        clay(g, circ(xx, yy, 6.2 - k * .25), '#9a7ae6', xx, yy, 6.5, { flat: true, lw: 1.4 }); } });
+      leaf(g, 60, 112, 24, 7, -.95, G); leaf(g, 68, 112, 24, 7, .95, G); },
+    pumpkin: g => { shadow(g, 64, 48); const c = '#f4923a';
+      [[30, 24], [98, 24]].forEach(([x, rx]) => clay(g, ell(x, 84, rx, 29), c, x, 82, 28));
+      [[45, 26], [83, 26]].forEach(([x, rx]) => clay(g, ell(x, 82, rx, 33), c, x, 80, 30));
+      clay(g, ell(64, 80, 24, 35), c, 62, 76, 32);
+      stem(g, 64, 50, 70, 32, 8, '#7a8a3a', 4);
+      g.save(); g.strokeStyle = '#6cc25a'; g.lineWidth = 3; g.beginPath(); g.moveTo(68, 42); g.bezierCurveTo(88, 30, 92, 48, 81, 47); g.bezierCurveTo(74, 46, 77, 38, 83, 39); g.stroke(); g.restore(); },
+
+    dewlily: g => { shadow(g, 64, 50, 118);
+      clay(g, g => { g.ellipse(64, 104, 52, 15, 0, .3, TAU - .05); g.lineTo(64, 104); g.closePath(); }, '#4fae6a', 60, 100, 48);
+      const p = '#f7a6c8';
+      [[-1.2, 32], [1.2, 32], [-.62, 40], [.62, 40], [0, 44]].forEach(([a, l]) => leaf(g, 64, 98, l, 13, a, p));
+      dots(g, [[60, 92], [64, 90], [68, 92]], '#ffd36b', 2.4);
+      clay(g, drop(92, 70, 7), '#8fd8ff', 92, 68, 8); shine(g, 90, 68, 2.2); },
+    honeybell: g => { shadow(g, 62, 26); stem(g, 72, 114, 64, 30, 5, G2, 16); leaf(g, 72, 104, 26, 9, .95, G);
+      clay(g, g => { g.moveTo(48, 44); g.bezierCurveTo(48, 20, 80, 20, 80, 44); g.lineTo(87, 74); g.quadraticCurveTo(78, 66, 73, 76);
+        g.quadraticCurveTo(64, 66, 55, 76); g.quadraticCurveTo(50, 66, 41, 74); g.closePath(); }, '#ffcf3d', 60, 48, 32);
+      clay(g, drop(64, 90, 6), '#f39c1f', 64, 88, 8); shine(g, 62, 88, 1.8); },
+    clover: g => { shadow(g, 64, 28); stem(g, 64, 114, 64, 62, 5, G2, -8);
+      [PI / 4, 3 * PI / 4, 5 * PI / 4, 7 * PI / 4].forEach(a => leaf(g, 64, 56, 34, 18, a, '#8fd13e', false));
+      clay(g, circ(64, 56, 6), '#f5c542', 64, 56, 6); shine(g, 46, 38, 3.5); shine(g, 82, 40, 2.5); },
+    moonmelon: g => { shadow(g, 64, 40); leaf(g, 40, 98, 28, 11, -1.2, G);
+      clay(g, circ(64, 76, 38), '#bfe39a', 60, 72, 38);
+      g.save(); g.beginPath(); g.arc(64, 76, 37, 0, TAU); g.clip(); g.strokeStyle = 'rgba(60,120,60,.3)'; g.lineWidth = 3;
+      [-22, 0, 22].forEach(d => { g.beginPath(); g.moveTo(64 + d, 38); g.quadraticCurveTo(64 + d * 1.8, 76, 64 + d, 114); g.stroke(); }); g.restore();
+      const c = newCanvas(S), h = c.getContext('2d');
+      clay(h, circ(72, 66, 13), '#fff2a8', 72, 66, 13, { flat: true });
+      h.globalCompositeOperation = 'destination-out'; h.beginPath(); h.arc(79, 61, 11, 0, TAU); h.fill();
+      g.drawImage(c, 0, 0);
+      stem(g, 64, 40, 60, 28, 5, '#6b8a3a'); },
+    mint: g => { shadow(g, 64, 34);
+      [[-1.15, 42], [1.15, 42], [-.62, 52], [.62, 52], [-.15, 60], [.22, 56]].forEach(([a, l]) => leaf(g, 64, 110, l, 16, a, '#5fd39b')); },
+    pepper: g => { shadow(g, 64, 32);
+      clay(g, g => { g.moveTo(80, 60); g.quadraticCurveTo(70, 42, 84, 24); g.quadraticCurveTo(84, 40, 94, 42); g.quadraticCurveTo(96, 56, 80, 60); }, '#ffae2b', 86, 46, 14);
+      clay(g, g => { g.moveTo(48, 44); g.bezierCurveTo(28, 72, 46, 106, 94, 112); g.bezierCurveTo(72, 96, 64, 72, 72, 44); g.closePath(); }, '#e8382c', 56, 72, 36);
+      clay(g, ell(60, 42, 14, 7, -.1), '#4fa040', 58, 40, 12);
+      stem(g, 60, 38, 68, 22, 5, '#4f8a3a', -6); shine(g, 48, 64, 4); },
+    poppy: g => { shadow(g, 64, 24); stem(g, 64, 114, 64, 58, 5, G2, 6); leaf(g, 64, 102, 26, 9, -1, G);
+      const c = '#ff5d73';
+      [[44, 46], [84, 46], [52, 60], [76, 60], [64, 34]].forEach(([x, y]) => clay(g, circ(x, y, 17), c, x, y, 17, { lw: 1.8 }));
+      clay(g, circ(64, 48, 9), '#3b2a40', 64, 48, 9);
+      dots(g, [[60, 45], [67, 44], [64, 51], [69, 50], [59, 51]], '#ffd36b', 1.6); },
+    rose: g => { shadow(g, 64, 24); stem(g, 64, 114, 64, 60, 5, '#4f9a3f', -4);
+      leaf(g, 62, 98, 26, 10, -1.1, '#4fa64a'); leaf(g, 66, 86, 24, 10, 1.1, '#4fa64a');
+      [[46, 52, 16], [82, 52, 16], [64, 63, 18], [52, 38, 15], [76, 38, 15]].forEach(([x, y, r]) => clay(g, circ(x, y, r), '#e23a5a', x, y, r, { lw: 1.8 }));
+      clay(g, circ(64, 47, 14), '#f15674', 62, 45, 14);
+      g.save(); g.strokeStyle = 'rgba(120,10,40,.55)'; g.lineWidth = 2.2; g.beginPath();
+      for (let t = 0; t < 12; t += .2) { const r = 1 + t * .9, x = 64 + Math.cos(t) * r, y = 47 + Math.sin(t) * r * .8; t ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.stroke(); g.restore(); },
+    blueberry: g => { shadow(g, 64, 38); leaf(g, 54, 70, 32, 12, -1.15, G); leaf(g, 74, 66, 32, 12, 1.1, G); stem(g, 64, 62, 64, 46, 3, '#6b5a3a');
+      [[64, 68], [47, 82], [81, 82], [56, 99], [76, 100]].forEach(([x, y]) => {
+        clay(g, circ(x, y, 14), '#5a76e0', x, y, 14);
+        g.save(); g.strokeStyle = '#2b356e'; g.lineWidth = 1.8; g.beginPath();
+        for (let k = 0; k < 5; k++) { const a = k * 1.256 - 1.57; g.moveTo(x, y - 9); g.lineTo(x + Math.cos(a) * 3.5, y - 9 + Math.sin(a) * 3.5); }
+        g.stroke(); g.restore(); }); },
+    starfruit: g => { shadow(g, 64, 34);
+      clay(g, g => { const pts = []; for (let k = 0; k < 10; k++) { const a = -PI / 2 + k * PI / 5, r = k % 2 ? 23 : 50; pts.push([64 + Math.cos(a) * r, 70 + Math.sin(a) * r]); }
+        g.moveTo((pts[0][0] + pts[9][0]) / 2, (pts[0][1] + pts[9][1]) / 2);
+        for (let k = 0; k < 10; k++) { const p = pts[k], n = pts[(k + 1) % 10]; g.arcTo(p[0], p[1], (p[0] + n[0]) / 2, (p[1] + n[1]) / 2, k % 2 ? 5 : 8); }
+        g.closePath(); }, '#ffd447', 60, 66, 48);
+      shine(g, 54, 58, 4.5); },
+    cactus: g => { shadow(g, 64, 28); const c = '#58b06a';
+      clay(g, rr(30, 54, 17, 32, 8.5), c, 38, 66, 16); clay(g, rr(36, 76, 24, 11, 5.5), c, 46, 80, 12);
+      clay(g, rr(81, 44, 17, 32, 8.5), c, 89, 56, 16); clay(g, rr(68, 66, 22, 11, 5.5), c, 78, 70, 12);
+      clay(g, rr(50, 34, 28, 80, 14), c, 60, 60, 34);
+      dots(g, [[56, 50], [70, 58], [58, 72], [72, 84], [56, 96], [38, 64], [90, 54], [66, 104]], 'rgba(255,255,255,.85)', 1.4);
+      for (let k = 0; k < 5; k++) { const a = k * TAU / 5 - PI / 2; clay(g, circ(64 + Math.cos(a) * 5, 32 + Math.sin(a) * 5, 4.5), '#ff8fb3', 64, 32, 6, { flat: true, lw: 1 }); }
+      clay(g, circ(64, 32, 2.6), '#ffd36b', 64, 32, 3, { flat: true, lw: 1 }); },
+    mushroom: g => { shadow(g, 64, 32);
+      clay(g, rr(52, 70, 24, 44, 11), '#f3e7d3', 60, 88, 22);
+      clay(g, g => { g.moveTo(20, 78); g.bezierCurveTo(20, 28, 108, 28, 108, 78); g.quadraticCurveTo(64, 90, 20, 78); }, '#e3d6f7', 58, 56, 46);
+      [[44, 60, 7], [70, 48, 6], [88, 66, 5], [60, 72, 4.5], [32, 72, 3.5]].forEach(([x, y, r]) => clay(g, circ(x, y, r), '#ffffff', x, y, r, { flat: true, lw: 1 }));
+      shine(g, 50, 46, 5); },
+
+    sprinkler: g => { shadow(g, 64, 32); clay(g, ell(64, 108, 28, 9), '#9aa3b5', 62, 106, 26);
+      clay(g, rr(58, 62, 12, 48, 6), '#b7bfcc', 62, 82, 18); clay(g, ell(64, 60, 19, 10), '#4fa6e8', 60, 57, 18);
+      g.save(); g.strokeStyle = 'rgba(143,220,255,.9)'; g.lineWidth = 3.5;
+      [[-1, 1], [1, 1]].forEach(([d]) => { g.beginPath(); g.moveTo(64 + d * 12, 56); g.quadraticCurveTo(64 + d * 34, 22, 64 + d * 50, 52); g.stroke(); }); g.restore();
+      [[22, 64], [106, 64], [36, 36], [92, 36], [64, 20]].forEach(([x, y]) => clay(g, drop(x, y, 5.5), '#7fd0ff', x, y, 6, { flat: true, lw: 1.4 })); },
+    mega: g => { shadow(g, 64, 54, 118);
+      clay(g, g => { g.moveTo(12, 82); g.quadraticCurveTo(64, 132, 116, 82); g.closePath(); }, '#a7b0c2', 60, 92, 52);
+      clay(g, ell(64, 82, 52, 12), '#5bb8f0', 60, 80, 50, { flat: true });
+      clay(g, rr(58, 42, 12, 42, 6), '#b7bfcc', 62, 60, 20); clay(g, ell(64, 40, 15, 8), '#a7b0c2', 62, 38, 14);
+      g.save(); g.strokeStyle = 'rgba(143,220,255,.95)'; g.lineWidth = 4;
+      [-1, 1].forEach(d => { g.beginPath(); g.moveTo(64, 34); g.quadraticCurveTo(64 + d * 30, 4, 64 + d * 44, 76); g.stroke(); }); g.restore();
+      [[64, 14], [34, 26], [94, 26]].forEach(([x, y]) => clay(g, drop(x, y, 5), '#7fd0ff', x, y, 6, { flat: true, lw: 1.4 })); },
+    tractor: g => { shadow(g, 66, 50, 118);
+      clay(g, rr(30, 60, 76, 32, 12), '#e8473c', 60, 70, 42);
+      clay(g, rr(34, 28, 38, 38, 9), '#e8473c', 50, 42, 24);
+      clay(g, rr(40, 34, 26, 20, 5), '#bfe6ff', 50, 40, 14, { flat: true });
+      clay(g, rr(88, 38, 8, 24, 3), '#5a5a66', 90, 46, 10);
+      const wheel = (x, y, r) => { clay(g, circ(x, y, r), '#3b3846', x, y, r); clay(g, circ(x, y, r * .46), '#ffd36b', x, y, r * .5, { flat: true }); };
+      wheel(46, 94, 22); wheel(96, 100, 14); },
+    planter: g => { shadow(g, 64, 36);
+      clay(g, ell(46, 110, 11, 6), '#3b3846', 46, 110, 10); clay(g, ell(82, 110, 11, 6), '#3b3846', 82, 110, 10);
+      clay(g, rr(36, 60, 56, 48, 16), '#6fcdc3', 56, 74, 34);
+      clay(g, rr(54, 74, 20, 18, 6), '#a86d45', 60, 80, 12);
+      stem(g, 64, 32, 64, 16, 3, '#6a6a78'); clay(g, circ(64, 13, 5.5), '#ff8f7a', 63, 12, 6);
+      clay(g, rr(42, 28, 44, 34, 13), '#8fe0d6', 58, 38, 26);
+      clay(g, circ(56, 45, 5), '#2b2238', 56, 45, 5, { flat: true }); clay(g, circ(72, 45, 5), '#2b2238', 72, 45, 5, { flat: true });
+      shine(g, 55, 43, 1.5); shine(g, 71, 43, 1.5); },
+    land: g => { shadow(g, 64, 58, 118);
+      clay(g, g => { g.moveTo(8, 112); g.quadraticCurveTo(28, 62, 58, 72); g.quadraticCurveTo(90, 40, 120, 112); g.closePath(); }, '#8fcf6e', 56, 80, 58);
+      stem(g, 80, 62, 80, 26, 3, '#7a5a3a');
+      clay(g, g => { g.moveTo(81, 26); g.lineTo(106, 35); g.lineTo(81, 44); g.closePath(); }, '#ff8f7a', 88, 33, 13);
+      clay(g, circ(36, 96, 9), '#6cc25a', 34, 94, 9); clay(g, circ(98, 100, 8), '#6cc25a', 96, 98, 8); },
+    lock: g => { shadow(g, 64, 28);
+      g.save(); g.strokeStyle = '#8d93a3'; g.lineWidth = 9; g.beginPath(); g.moveTo(48, 72); g.lineTo(48, 58); g.arc(64, 58, 16, PI, 0); g.lineTo(80, 72); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2.5; g.beginPath(); g.arc(64, 58, 16, PI * 1.1, PI * 1.5); g.stroke(); g.restore();
+      clay(g, rr(36, 66, 56, 44, 13), '#ffd36b', 56, 80, 32);
+      clay(g, circ(64, 84, 5.5), '#5a4a3a', 64, 84, 5.5, { flat: true }); g.fillStyle = '#5a4a3a'; g.fillRect(61.5, 86, 5, 11); },
+    coin: g => { clay(g, circ(64, 64, 48), '#f2bb33', 58, 58, 48); clay(g, circ(64, 64, 34), '#f9d35a', 60, 60, 34, { flat: true });
+      leaf(g, 62, 86, 30, 11, -.55, '#d99a1c', false); leaf(g, 66, 86, 30, 11, .55, '#d99a1c', false); },
+    basket: g => { shadow(g, 64, 48);
+      g.save(); g.strokeStyle = '#9a6234'; g.lineWidth = 8; g.beginPath(); g.arc(64, 64, 36, PI, 0); g.stroke(); g.restore();
+      clay(g, circ(48, 62, 14), '#ee4a36', 48, 62, 14); clay(g, circ(76, 60, 14), '#5a76e0', 76, 60, 14); clay(g, circ(62, 54, 12), '#ffc83a', 62, 54, 12);
+      clay(g, g => { g.moveTo(18, 66); g.lineTo(110, 66); g.lineTo(98, 114); g.lineTo(30, 114); g.closePath(); }, '#c98a4b', 56, 82, 48);
+      g.save(); g.strokeStyle = 'rgba(90,50,20,.4)'; g.lineWidth = 2.5;
+      [80, 96].forEach(y => { g.beginPath(); g.moveTo(22, y); g.lineTo(106, y); g.stroke(); });
+      for (let x = 34; x < 100; x += 12) { g.beginPath(); g.moveTo(x, 68); g.lineTo(x + 3, 112); g.stroke(); } g.restore(); },
+    flame: g => { clay(g, g => { g.moveTo(64, 8); g.bezierCurveTo(102, 44, 106, 86, 84, 108); g.quadraticCurveTo(64, 124, 44, 108);
+        g.bezierCurveTo(22, 86, 34, 56, 50, 40); g.quadraticCurveTo(54, 62, 62, 60); g.quadraticCurveTo(56, 34, 64, 8); }, '#ff8a3d', 60, 76, 46);
+      clay(g, g => { g.moveTo(64, 62); g.bezierCurveTo(86, 80, 84, 102, 64, 110); g.bezierCurveTo(44, 102, 44, 82, 64, 62); }, '#ffd36b', 62, 88, 22, { flat: true }); },
+  };
+
+  const out = {};
+  for (const id in D) {
+    try {
+      const c = newCanvas(S), g = c.getContext('2d');
+      if (!g) continue;
+      g.lineJoin = 'round'; g.lineCap = 'round';
+      D[id](g);
+      out[id] = c.toDataURL('image/png');
+    } catch (e) { /* that sprite falls back to its emoji */ }
+  }
+  return out;
+}
+
+
+const SEEDS = [
+  { id: 'carrot',     name: 'Carrot',     emoji: '🥕', cost: 2, sell: 5,  time: 20 },
+  { id: 'strawberry', name: 'Strawberry', emoji: '🍓', cost: 3, sell: 8,  time: 30 },
+  { id: 'tomato',     name: 'Tomato',     emoji: '🍅', cost: 4, sell: 11, time: 40 },
+  { id: 'sunflower',  name: 'Sunflower',  emoji: '🌻', cost: 5, sell: 14, time: 50 },
+  { id: 'lavender',   name: 'Lavender',   emoji: '🪻', cost: 6, sell: 18, time: 60 },
+  { id: 'pumpkin',    name: 'Pumpkin',    emoji: '🎃', cost: 8, sell: 24, time: 75 },
+];
+
+// Special roster. Three are on offer at a time. "Neighbors" = the 8 surrounding tiles.
+const SPECIALS = [
+  { id: 'dewlily',   name: 'Dewdrop Lily',        emoji: '🪷', cost: 25, sell: 45, time: 45, fx: 'rain',    desc: 'Rain aura: keeps itself and its neighbors watered.' },
+  { id: 'honeybell', name: 'Honeybell',           emoji: '🌼', cost: 28, sell: 48, time: 40, fx: 'honey',   desc: 'On harvest, every growing neighbor jumps 30% closer to ripe.' },
+  { id: 'clover',    name: 'Goldleaf Clover',     emoji: '🍀', cost: 26, sell: 40, time: 35, fx: 'lucky',   desc: '30% chance to sell for triple.' },
+  { id: 'moonmelon', name: 'Moonmelon',           emoji: '🍈', cost: 35, sell: 60, time: 60, fx: 'fast',    desc: 'Grows twice as fast while watered.' },
+  { id: 'mint',      name: 'Pixie Mint',          emoji: '🍃', cost: 22, sell: 36, time: 30, fx: 'mulch',   desc: 'Mulch: neighbors stay damp twice as long.' },
+  { id: 'pepper',    name: 'Ember Pepper',        emoji: '🌶️', cost: 30, sell: 50, time: 45, fx: 'chain',   desc: 'Harvesting it also harvests every ripe neighbor.' },
+  { id: 'poppy',     name: 'Sprinkle Poppy',      emoji: '🌺', cost: 27, sell: 44, time: 40, fx: 'sower',   desc: 'On harvest, sows a free random seed in an empty neighbor tile.' },
+  { id: 'rose',      name: 'Thorny Rose',         emoji: '🌹', cost: 32, sell: 50, time: 50, fx: 'bouquet', desc: 'Bouquet: +4 🪙 for every planted neighbor at harvest.' },
+  { id: 'blueberry', name: 'Evergreen Blueberry', emoji: '🫐', cost: 34, sell: 52, time: 50, fx: 'regrow',  desc: 'Regrows once after harvest, no new seed needed.' },
+  { id: 'starfruit', name: 'Starfruit',           emoji: '🌟', cost: 20, sell: 32, time: 35, fx: 'sparkle', desc: 'On harvest, waters the entire garden.' },
+  { id: 'cactus',    name: 'Sleepy Cactus',       emoji: '🌵', cost: 24, sell: 38, time: 50, fx: 'hardy',   desc: 'Keeps growing at half speed even when dry.' },
+  { id: 'mushroom',  name: 'Pearl Mushroom',      emoji: '🍄', cost: 33, sell: 45, time: 45, fx: 'spore',   desc: 'Spore burst: +3 🪙 for every other plant in the garden.' },
+];
+
+// Curio balance: bigger payouts, bigger XP, and several seeds per offer.
+const CURIO_SELL_MULT = 2.5, CURIO_XP_MULT = 2, CURIO_STOCK = 3;
+SPECIALS.forEach(s => { s.sell = Math.round(s.sell * CURIO_SELL_MULT); });
+const xpOf = s => Math.round((XP[s.id] || 0) * (isSpecial(s) ? CURIO_XP_MULT : 1));
+
+const SIZE = 8 /* index stride; the visible garden is state.size */, WATER_SECONDS = 18, ROTATE_MS = 90000, REROLL_COST = 10, SAVE_KEY = 'cozy-garden-v2', OLD_KEY = 'cozy-garden-v1';
+const GOLD_CHANCE = 0.04, GOLD_MULT = 5;          // rare golden basic crops
+const MAX_AWAY = 8 * 3600;                        // offline growth is capped at 8 hours
+const ORDER_SLOTS = 3, ORDER_WAIT = 40;           // customer orders; seconds until a new customer arrives
+const ALL = SEEDS.concat(SPECIALS);
+const SPR = (() => { try { return buildArt(n => { const c = document.createElement('canvas'); c.width = c.height = n; return c; }); } catch (e) { return {}; } })();
+const FALLBACK = { sprout: '🌱', young: '🌿', lock: '🔒', coin: '🪙', basket: '🧺', flame: '🔥', tractor: '🚜', planter: '🤖', land: '🏞️', sprinkler: '🚿', mega: '⛲' };
+ALL.forEach(s => { FALLBACK[s.id] = s.emoji; });
+const art = (id, cls = '') => SPR[id] ? `<img class="spr ${cls}" src="${SPR[id]}" alt="" draggable="false">` : `<span class="spr fb ${cls}">${FALLBACK[id] || '•'}</span>`;
+
+// XP dropped on harvest, unique to each plant.
+const XP = {
+  carrot: 3, strawberry: 5, tomato: 8, sunflower: 12, lavender: 16, pumpkin: 24,
+  starfruit: 22, mint: 24, cactus: 26, clover: 28, dewlily: 30, poppy: 32,
+  honeybell: 34, mushroom: 34, pepper: 36, rose: 38, blueberry: 40, moonmelon: 45,
+};
+const xpNeeded = l => Math.round(20 * Math.pow(1.3, l - 1));   // XP to go from level l to l+1
+const levelBonus = () => 1 + 0.02 * (state.level - 1);          // +2% harvest coins per level after 1
+
+// Level gating: the level at which each plant unlocks.
+const UNLOCK = {
+  carrot: 1, strawberry: 2, tomato: 3, sunflower: 4, lavender: 6, pumpkin: 8,
+  starfruit: 5, mint: 5, clover: 5, cactus: 6, dewlily: 7, poppy: 8,
+  honeybell: 9, mushroom: 10, pepper: 11, rose: 12, blueberry: 13, moonmelon: 14,
+};
+const CURIO_LEVEL = 5;   // level the Curio Shop opens
+
+// Workshop: placeable automation. Each one occupies a tile. Cost rises 35% per one you own.
+const WORKSHOP_LEVEL = 8;
+const STRUCTS = {
+  sprinkler: { name: 'Sprinkler',      emoji: '🚿', cost: 120, unlock: 8,  kind: 'water', radius: 1, every: 6,
+               desc: 'Keeps every plant in the 8 surrounding tiles watered.' },
+  mega:      { name: 'Mega Sprinkler', emoji: '⛲', cost: 600, unlock: 12, kind: 'water', radius: 2, every: 6,
+               desc: 'Keeps every plant within 2 tiles watered (up to 24 tiles).' },
+};
+// Machines use no tiles. Tractors snake across the garden harvesting; planters plant anywhere empty.
+const TRACTOR = { name: 'Tractor',      emoji: '🚜', cost: 400, unlock: 11, max: 4, speed: 1.6 };   // speed = tiles per second
+const PLANTER = { name: 'Auto-Planter', emoji: '🤖', cost: 300, unlock: 10, max: 4, every: 2.5 };
+const EXPAND  = { 6: 1500, 7: 5000, 8: 15000 };   // coins to grow the garden to NxN
+// Plot gating: 3x3 at Lv 1, 4x4 at Lv 3, 5x5 at Lv 6 (anchored top-left).
+const plotLevel = i => { const m = Math.max(Math.floor(i / SIZE), i % SIZE); return m <= 2 ? 1 : m === 3 ? 3 : 6; };
+const inGrid = i => Math.floor(i / SIZE) < state.size && i % SIZE < state.size;
+const tileOpen = i => inGrid(i) && (state.level >= plotLevel(i) || !!state.plots[i]);   // planted tiles from older saves stay usable
+
+const CUSTOMERS = [
+  ['👵', 'Granny Rosa'], ['🧑‍🍳', 'Chef Basil'], ['🧁', 'Pip the baker'], ['🐻', 'Bramble'],
+  ['🦊', 'Fennick'], ['🧙', 'Old Thyme'], ['🐸', 'Sir Croaksley'], ['👧', 'Little Juniper'],
+  ['🦔', 'Mrs. Prickle'], ['🐝', 'The Hive'], ['🧑‍🌾', 'Farmer Hollis'], ['🐰', 'Clover Hop'],
+];
+
+function unlocksAt(l) {
+  const out = [];
+  if (l === 3) out.push('4×4 plot');
+  if (l === 6) out.push('5×5 plot');
+  if (l === CURIO_LEVEL) out.push('✨ Curio Shop');
+  if (l === WORKSHOP_LEVEL) out.push('🛠️ Workshop');
+  Object.values(STRUCTS).concat([TRACTOR, PLANTER]).forEach(d => { if (d.unlock === l) out.push(`${d.emoji} ${d.name}`); });
+  ALL.forEach(s => { if (UNLOCK[s.id] === l && l > 1) out.push(`${s.emoji} ${s.name}`); });
+  return out;
+}
+function nextUnlockText() {
+  for (let l = state.level + 1; l <= 30; l++) {
+    const u = unlocksAt(l);
+    if (u.length) return `Next unlock · Lv ${l}: ${u.join(', ')}`;
+  }
+  return '🌟 Everything is unlocked!';
+}
+function curioFooter() {
+  const next = SPECIALS.map(s => UNLOCK[s.id]).filter(l => l > state.level).sort((a, b) => a - b)[0];
+  return `<div class="nextcurio">${next ? `🔒 More Curios unlock at Level ${next}` : '🌟 Every Curio is unlocked!'}</div>`;
+}
+const anySeed = id => ALL.find(s => s.id === id);
+const isSpecial = s => !!s.fx;
+const fxOf = p => anySeed(p.seed).fx;
+const newPlot = id => ({ seed: id, growth: 0, water: WATER_SECONDS, gold: !isSpecial(anySeed(id)) && Math.random() < GOLD_CHANCE });
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || localStorage.getItem(OLD_KEY));
+    return s && s.plots && (s.plots.length === 25 || s.plots.length === SIZE * SIZE) ? s : null;
+  } catch (e) { return null; }
+}
+function save() { try { state.lastSeen = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {} }
+
+const hot = window.claude && window.claude.hot;
+const hotData = hot && hot.data && hot.data.plots ? hot.data : null;
+const saved = hotData || load();
+const fresh = !saved;
+let state = saved || { coins: 20, harvested: 0, plots: Array(SIZE * SIZE).fill(null), selected: 'carrot' };
+if (hot && hot.snapshot) { try { hot.snapshot(() => state); } catch (e) {} }
+state.inv = state.inv || {};
+// Older saves stored a 5x5 board with stride 5; re-index onto the stride-8 board.
+function remap(arr) {
+  if (!arr || arr.length === SIZE * SIZE) return arr;
+  const out = Array(SIZE * SIZE).fill(null);
+  arr.forEach((v, i) => { out[Math.floor(i / 5) * SIZE + (i % 5)] = v; });
+  return out;
+}
+state.plots = remap(state.plots);
+state.structs = state.structs ? remap(state.structs) : Array(SIZE * SIZE).fill(null);
+state.sInv = state.sInv || {};
+state.size = state.size || 5;
+state.tractors = state.tractors || 0; state.tdir = state.tdir || 'h'; state.tpos = state.tpos || 0;
+state.planters = state.planters || [];
+// Auto-planters used to be placed on tiles; they are now tile-free machines.
+state.structs.forEach((st, i) => { if (st && st.type === 'planter') { state.planters.push({ seed: st.seed || 'carrot', cd: 0 }); state.structs[i] = null; } });
+for (let k = 0; k < (state.sInv.planter || 0); k++) state.planters.push({ seed: 'carrot', cd: 0 });
+delete state.sInv.planter;
+state.placing = null; state.active = null;
+state.level = state.level || 1;
+state.xp = state.xp || 0;
+// Replay hooks: stats, orders, goals, streak.
+state.stats = state.stats || {};
+state.goldHarvested = state.goldHarvested || 0;
+state.ordersDone = state.ordersDone || 0;
+state.goals = state.goals || {};
+state.orders = Array.isArray(state.orders) ? state.orders : [];
+state.streak = state.streak || 0; state.bestStreak = state.bestStreak || 0;
+if (state.sound === undefined) state.sound = true;
+
+// Adds XP, handles level-ups (with a coin gift). Returns true if at least one level was gained.
+let lastUnlock = '';   // text describing what the latest level-up(s) unlocked
+let quiet = false;     // true while simulating time away: no pop-ups, sounds or messages
+let raining = false;   // true while simulating time away: every plant counts as watered
+function addXp(n) {
+  state.xp += n;
+  let leveled = false;
+  while (state.xp >= xpNeeded(state.level)) {
+    state.xp -= xpNeeded(state.level);
+    state.level++;
+    const gift = 5 + 5 * state.level;
+    state.coins += gift;
+    leveled = true;
+    const u = unlocksAt(state.level);
+    if (u.length) lastUnlock += (lastUnlock ? ' ' : '') + '🔓 Unlocked: ' + u.join(', ') + '.';
+    if (state.level === CURIO_LEVEL) rollShop();
+    pop(`🎉 Level ${state.level}! +🪙${gift}`);
+    chime([523, 659, 784, 1047], 0.22);
+  }
+  return leveled;
+}
+state.tab = state.tab || 'seeds';
+if (!state.shop || !state.shop.ids || state.shop.ids.length !== 3 ||
+    (state.level >= CURIO_LEVEL && state.shop.ids.some(id => UNLOCK[id] > state.level))) rollShop();
+
+if (state.shop && state.shop.ids && !state.shop.stock)   // migrate older saves
+  state.shop.stock = state.shop.ids.map((_, i) => state.shop.sold && state.shop.sold[i] ? 0 : CURIO_STOCK);
+
+function rollShop(announce) {
+  const prev = (state.shop && state.shop.ids) || [];
+  let all = SPECIALS.filter(s => UNLOCK[s.id] <= state.level);   // only unlocked Curios are offered
+  if (all.length < 3) all = SPECIALS.slice();                     // shop is hidden below the Curio level anyway
+  let pool = all.filter(s => !prev.includes(s.id));
+  if (pool.length < 3) pool = all.slice();
+  const ids = [];
+  while (ids.length < 3) ids.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0].id);
+  state.shop = { ids, stock: ids.map(() => CURIO_STOCK), next: Date.now() + ROTATE_MS };
+  if (announce) say(announce);
+  save();
+}
+
+/* ---------- feedback: sound, sparkles ---------- */
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let actx = null, lastChime = 0;
+function chime(freqs, dur = 0.14, vol = 0.05) {
+  if (quiet || !state.sound) return;
+  const now = Date.now();
+  if (now - lastChime < 70) return;
+  lastChime = now;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    freqs.forEach((f, k) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + k * 0.075;
+      o.type = 'triangle'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.03);
+    });
+  } catch (e) {}
+}
+function burst(e, emoji, gold) {
+  if (quiet || reduceMotion || !e || e.clientX == null) return;
+  const n = gold ? 10 : 5;
+  for (let k = 0; k < n; k++) {
+    const d = document.createElement('div'), a = Math.random() * Math.PI * 2, r = 28 + Math.random() * 40;
+    d.className = 'spark'; d.textContent = k % 2 ? (gold ? '✨' : emoji) : '✦';
+    d.style.left = (e.clientX - 8) + 'px'; d.style.top = (e.clientY - 10) + 'px';
+    d.style.setProperty('--dx', Math.cos(a) * r + 'px'); d.style.setProperty('--dy', (Math.sin(a) * r - 18) + 'px');
+    document.body.appendChild(d); setTimeout(() => d.remove(), 720);
+  }
+}
+
+/* ---------- board ---------- */
+const plotEl = document.getElementById('plot');
+const msgEl = document.getElementById('msg');
+const tiles = [];
+for (let i = 0; i < SIZE * SIZE; i++) {
+  const t = document.createElement('div');
+  t.className = 'tile';
+  t.addEventListener('click', e => tapTile(i, e));
+  plotEl.appendChild(t);
+  tiles.push(t);
+}
+
+function nb(i) {
+  const r = Math.floor(i / SIZE), c = i % SIZE, out = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+    if (!dr && !dc) continue;
+    const rr = r + dr, cc = c + dc;
+    if (rr >= 0 && rr < state.size && cc >= 0 && cc < state.size) out.push(rr * SIZE + cc);
+  }
+  return out;
+}
+
+// Tiles within Chebyshev distance r (square area), excluding the tile itself.
+function around(i, r) {
+  const R = Math.floor(i / SIZE), C = i % SIZE, out = [];
+  for (let dr = -r; dr <= r; dr++) for (let dc = -r; dc <= r; dc++) {
+    if (!dr && !dc) continue;
+    const rr = R + dr, cc = C + dc;
+    if (rr >= 0 && rr < state.size && cc >= 0 && cc < state.size) out.push(rr * SIZE + cc);
+  }
+  return out;
+}
+
+function say(t) { if (!quiet) msgEl.textContent = t; }
+function pop(text, e) {
+  if (quiet) return;
+  const f = document.createElement('div');
+  f.className = 'float'; f.textContent = text;
+  f.style.left = (e && e.clientX != null ? e.clientX - 12 : innerWidth / 2) + 'px';
+  f.style.top = (e && e.clientY != null ? e.clientY - 20 : innerHeight / 2) + 'px';
+  document.body.appendChild(f); setTimeout(() => f.remove(), 1000);
+}
+
+function tapTile(i, e) {
+  const p = state.plots[i];
+  if (state.structs[i]) { state.active = state.active === i ? null : i; state.placing = null; render(); return; }
+  if (state.placing) { placeStruct(i, e); return; }
+  if (!p && !tileOpen(i)) { say(`🔒 This plot unlocks at Level ${plotLevel(i)}.`); pop('🔒', e); return; }
+  if (!p) {
+    if (state.level < UNLOCK[state.selected]) state.selected = 'carrot';
+    let s = anySeed(state.selected);
+    if (isSpecial(s) && !(state.inv[s.id] > 0)) {
+      state.selected = 'carrot'; s = anySeed('carrot');
+      say('Out of that special seed. Switched back to carrots.');
+    }
+    if (isSpecial(s)) {
+      state.inv[s.id]--;
+      pop(s.emoji, e); say(`Planted ${s.name}. ${s.desc}`);
+    } else {
+      if (state.coins < s.cost) { say(`Not enough coins for ${s.name} seeds. Try a cheaper one!`); pop('🪙?', e); return; }
+      state.coins -= s.cost;
+      pop(`-🪙${s.cost}`, e); say(`Planted ${s.name}. It was watered to start.`);
+    }
+    state.plots[i] = newPlot(s.id);
+    if (state.plots[i].gold) { say(`✨ A golden ${s.name} sprouted! It sells for ${GOLD_MULT}×.`); chime([880, 1175]); }
+    else chime([392], 0.08, 0.035);
+    if (isSpecial(s) && !(state.inv[s.id] > 0)) state.selected = 'carrot';
+  } else if (p.growth >= 1) {
+    lastUnlock = '';
+    harvestCore(i, e);
+  } else {
+    p.water = WATER_SECONDS; pop('💧', e); say('Splash! Nice and damp.'); chime([660], 0.07, 0.03);
+  }
+  save(); render();
+}
+
+// Harvests one tile, applies its special effect, returns coins earned (including chained harvests).
+function harvestCore(i, e, opts = {}) {
+  const p = state.plots[i];
+  if (!p || p.growth < 1) return 0;
+  const s = anySeed(p.seed), ns = nb(i), gold = !!p.gold;
+  let val = s.sell, note = '';
+
+  if (gold) { val *= GOLD_MULT; note = ` ✨ Golden ×${GOLD_MULT}!`; }
+  if (s.fx === 'lucky' && Math.random() < 0.3) { val *= 3; note = ' Lucky! ×3'; }
+  if (s.fx === 'bouquet') { const n = ns.filter(j => state.plots[j]).length; val += 4 * n; if (n) note = ` (${n} neighbors)`; }
+  if (s.fx === 'spore') { const n = state.plots.filter(Boolean).length - 1; val += 3 * n; if (n > 0) note = ` (${n} spores)`; }
+
+  val = Math.round(val * levelBonus());
+
+  if (s.fx === 'regrow' && !p.regrown) { p.growth = 0; p.regrown = true; p.water = WATER_SECONDS; note = ' It regrows!'; }
+  else state.plots[i] = null;
+  state.coins += val; state.harvested++;
+  state.stats[s.id] = (state.stats[s.id] || 0) + 1;
+  if (gold) state.goldHarvested++;
+  const xpGain = xpOf(s);
+  const leveled = addXp(xpGain);
+  let total = val;
+
+  if (s.fx === 'honey') ns.forEach(j => { const q = state.plots[j]; if (q && q.growth < 1) q.growth = Math.min(1, q.growth + 0.3); });
+  if (s.fx === 'sparkle') state.plots.forEach(q => { if (q && q.growth < 1) q.water = WATER_SECONDS; });
+  if (s.fx === 'sower') {
+    const empty = ns.filter(j => !state.plots[j] && !state.structs[j] && tileOpen(j));
+    if (empty.length) {
+      const j = empty[Math.floor(Math.random() * empty.length)];
+      const choices = SEEDS.filter(x => UNLOCK[x.id] <= state.level);
+      const b = choices[Math.floor(Math.random() * choices.length)];
+      state.plots[j] = newPlot(b.id);
+      note = ` Sowed a ${b.name}!`;
+    }
+  }
+  if (s.fx === 'chain' && !opts.noChain) ns.forEach(j => { total += harvestCore(j, e, { noChain: true }); });
+
+  note += ` +${xpGain} XP`;
+  if (leveled) note += ` 🎉 Level ${state.level}!`;
+  pop(`+🪙${val}${note}`, e);
+  burst(e, s.emoji, gold);
+  if (!leveled) chime(gold ? [784, 988, 1319] : [587 + Math.random() * 120, 880], 0.12, 0.045);
+  say(`Harvested ${s.name}!${note}${lastUnlock ? ' ' + lastUnlock : ''}`);
+  onOrderHarvest(s.id);
+  return total;
+}
+
+document.getElementById('waterAll').onclick = () => {
+  let n = 0; state.plots.forEach(p => { if (p && p.growth < 1) { p.water = WATER_SECONDS; n++; } });
+  say(n ? `Watered ${n} plant${n > 1 ? 's' : ''}. 💦` : 'Nothing needs water right now.');
+  if (n) chime([523, 659], 0.08, 0.03);
+  save(); render();
+};
+document.getElementById('harvestAll').onclick = e => {
+  const before = state.harvested, coinsBefore = state.coins;
+  lastUnlock = '';
+  for (let i = 0; i < state.plots.length; i++) harvestCore(i, e);
+  const n = state.harvested - before;
+  if (n) say(`Harvested ${n} for 🪙${state.coins - coinsBefore}!` + (lastUnlock ? ' ' + lastUnlock : ''));
+  else say('Nothing is ripe yet.');
+  save(); render();
+};
+
+document.getElementById('plantAll').onclick = () => {
+  if (state.level < UNLOCK[state.selected]) state.selected = 'carrot';
+  const s = anySeed(state.selected);
+  let n = 0, spent = 0, golds = 0;
+  for (let i = 0; i < state.plots.length; i++) {
+    if (state.plots[i] || state.structs[i] || !tileOpen(i)) continue;
+    if (isSpecial(s)) { if (!(state.inv[s.id] > 0)) break; state.inv[s.id]--; }
+    else { if (state.coins < s.cost) break; state.coins -= s.cost; spent += s.cost; }
+    state.plots[i] = newPlot(s.id);
+    if (state.plots[i].gold) golds++;
+    n++;
+  }
+  if (isSpecial(s) && !(state.inv[s.id] > 0)) state.selected = 'carrot';
+  say(n ? `Planted ${n} ${s.name}${isSpecial(s) ? '' : ` for 🪙${spent}`}.${golds ? ` ✨ ${golds} came up golden!` : ''}` : 'No room, or not enough seeds or coins to plant.');
+  if (n) chime(golds ? [880, 1175] : [392, 494], 0.08, 0.035);
+  save(); render();
+};
+
+document.getElementById('sound').onclick = () => {
+  state.sound = !state.sound; save(); render();
+  if (state.sound) chime([659, 880], 0.1);
+};
+
+/* ---------- orders ---------- */
+function openTiles() { let n = 0; for (let i = 0; i < SIZE * SIZE; i++) if (tileOpen(i) && !state.structs[i]) n++; return n; }
+function makeOrder() {
+  const pool = SEEDS.filter(s => UNLOCK[s.id] <= state.level);
+  const r = Math.random();
+  const kinds = Math.min(pool.length, state.level >= 6 && r < 0.3 ? 3 : state.level >= 2 && r < 0.6 ? 2 : 1);
+  const left = pool.slice(), picks = [];
+  while (picks.length < kinds) {          // newer crops are a little more popular
+    const tot = left.reduce((a, _, k) => a + k + 1, 0);
+    let x = Math.random() * tot, k = 0;
+    while (k < left.length - 1 && (x -= k + 1) > 0) k++;
+    picks.push(left.splice(k, 1)[0]);
+  }
+  const room = Math.max(4, openTiles());
+  const items = picks.map(s => ({ id: s.id, have: 0,
+    need: Math.max(2, Math.min(40, Math.round(room * (0.35 + Math.random() * 0.35) * 30 / s.time / Math.sqrt(kinds)))) }));
+  const value = items.reduce((a, it) => a + anySeed(it.id).sell * it.need, 0);
+  const xp = items.reduce((a, it) => a + XP[it.id] * it.need, 0);
+  const curios = SPECIALS.filter(s => UNLOCK[s.id] <= state.level);
+  return {
+    cust: Math.floor(Math.random() * CUSTOMERS.length), items,
+    coins: Math.round(value * 1.5 * levelBonus()) + 10, xp: Math.round(xp * 0.6) + 5,
+    seed: state.level >= CURIO_LEVEL && curios.length && Math.random() < 0.3 ? curios[Math.floor(Math.random() * curios.length)].id : null,
+  };
+}
+const orderDone = o => !!(o && o.items && o.items.every(it => it.have >= it.need));
+while (state.orders.length < ORDER_SLOTS) state.orders.push(makeOrder());
+state.orders.length = ORDER_SLOTS;
+
+// Each harvested crop goes into one basket: the first open order (top to bottom) that still wants it.
+function onOrderHarvest(id) {
+  for (const o of state.orders) {
+    if (!o.items || orderDone(o)) continue;
+    const it = o.items.find(x => x.id === id && x.have < x.need);
+    if (!it) continue;
+    it.have++;
+    if (orderDone(o)) { say(`📋 ${CUSTOMERS[o.cust][1]}'s order is ready! Deliver it in the Journal.`); chime([659, 784, 988], 0.16); }
+    return;
+  }
+}
+function orderTick(dt) {
+  state.orders.forEach((o, k) => {
+    if (o.items) return;
+    o.wait -= dt;
+    if (o.wait <= 0) state.orders[k] = makeOrder();
+  });
+}
+function deliverOrder(k, e) {
+  const o = state.orders[k];
+  if (!orderDone(o)) return;
+  state.coins += o.coins;
+  lastUnlock = '';
+  const leveled = addXp(o.xp);
+  if (o.seed) state.inv[o.seed] = (state.inv[o.seed] || 0) + 1;
+  state.ordersDone++;
+  state.orders[k] = { wait: ORDER_WAIT };
+  const [, name] = CUSTOMERS[o.cust];
+  pop(`+🪙${o.coins} +${o.xp} XP`, e);
+  burst(e, '🪙', true);
+  if (!leveled) chime([523, 659, 784, 1047], 0.18);
+  say(`${name} paid 🪙${o.coins}${o.seed ? ` and tipped a ${anySeed(o.seed).name} seed` : ''}. Thank you!${lastUnlock ? ' ' + lastUnlock : ''}`);
+  save(); render();
+}
+
+/* ---------- goals ---------- */
+const curiosGrown = () => SPECIALS.filter(s => state.stats[s.id]).length;
+const GOALS = [
+  { id: 'h10',    icon: '🧺', name: 'First basket',      desc: 'Harvest 10 crops',            n: () => state.harvested, of: 10,   reward: 25 },
+  { id: 'o1',     icon: '📋', name: 'Happy customer',    desc: 'Deliver an order',            n: () => state.ordersDone, of: 1,   reward: 30 },
+  { id: 'gold',   icon: '✨', name: 'Midas touch',       desc: 'Harvest a golden crop',       n: () => state.goldHarvested, of: 1, reward: 60 },
+  { id: 'h100',   icon: '🌿', name: 'Green thumb',       desc: 'Harvest 100 crops',           n: () => state.harvested, of: 100,  reward: 120 },
+  { id: 'basic',  icon: '🥫', name: 'Full pantry',       desc: 'Harvest every basic crop',    n: () => SEEDS.filter(s => state.stats[s.id]).length, of: SEEDS.length, reward: 200 },
+  { id: 'streak3',icon: '🔥', name: 'Regular',           desc: 'Visit 3 days in a row',       n: () => state.bestStreak, of: 3,   reward: 150 },
+  { id: 'o10',    icon: '🏡', name: 'Town favorite',     desc: 'Deliver 10 orders',           n: () => state.ordersDone, of: 10,  reward: 300 },
+  { id: 'curio3', icon: '🔮', name: 'Curious mind',      desc: 'Harvest 3 different Curios',  n: curiosGrown, of: 3,              reward: 300 },
+  { id: 'lv10',   icon: '🎖️', name: 'Seasoned grower',   desc: 'Reach Level 10',              n: () => state.level, of: 10,       reward: 400 },
+  { id: 'h500',   icon: '🛒', name: 'Market regular',    desc: 'Harvest 500 crops',           n: () => state.harvested, of: 500,  reward: 500 },
+  { id: 'tractor',icon: '🚜', name: 'Vroom',             desc: 'Buy a tractor',               n: () => state.tractors, of: 1,     reward: 250 },
+  { id: 'streak7',icon: '📅', name: 'Faithful gardener', desc: 'Visit 7 days in a row',       n: () => state.bestStreak, of: 7,   reward: 700 },
+  { id: 'o50',    icon: '🏘️', name: 'Village supplier',  desc: 'Deliver 50 orders',           n: () => state.ordersDone, of: 50,  reward: 1500 },
+  { id: 'h2000',  icon: '🏆', name: 'Harvest legend',    desc: 'Harvest 2,000 crops',         n: () => state.harvested, of: 2000, reward: 2500 },
+  { id: 'curioAll',icon:'📚', name: 'Master botanist',   desc: 'Harvest all 12 Curios',       n: curiosGrown, of: SPECIALS.length, reward: 3000 },
+  { id: 'size8',  icon: '🏞️', name: 'Rolling acres',     desc: 'Expand the garden to 8×8',    n: () => state.size, of: 8,         reward: 5000 },
+  { id: 'lv20',   icon: '🌳', name: 'Garden sage',       desc: 'Reach Level 20',              n: () => state.level, of: 20,       reward: 4000 },
+];
+function checkGoals() {
+  GOALS.forEach(g => {
+    if (state.goals[g.id] || g.n() < g.of) return;
+    state.goals[g.id] = 'ready';
+    say(`🏅 Goal reached: ${g.name}! Claim it in the Journal.`);
+    chime([784, 988, 1175], 0.16);
+  });
+}
+function claimGoal(id, e) {
+  const g = GOALS.find(x => x.id === id);
+  if (!g || state.goals[id] !== 'ready') return;
+  state.goals[id] = 'claimed'; state.coins += g.reward;
+  pop(`+🪙${g.reward}`, e); burst(e, '🏅', true); chime([523, 784, 1047], 0.18);
+  say(`🏅 ${g.name} claimed: +🪙${g.reward}.`);
+  save(); render();
+}
+const claimables = () => state.orders.filter(orderDone).length + GOALS.filter(g => state.goals[g.id] === 'ready').length;
+
+/* ---------- workshop & automation ---------- */
+const ownedStructs = id => (state.sInv[id] || 0) + state.structs.filter(x => x && x.type === id).length;
+const structCost = id => Math.round(STRUCTS[id].cost * Math.pow(1.35, ownedStructs(id)));
+const tractorCost = () => Math.round(TRACTOR.cost * Math.pow(1.35, state.tractors));
+const planterCost = () => Math.round(PLANTER.cost * Math.pow(1.35, state.planters.length));
+const expandCost = () => EXPAND[state.size + 1];   // undefined once fully grown
+
+// Screen position of a tile, so harvest pop-ups appear where the tractor is.
+function tileEvt(i) {
+  if (quiet) return null;
+  const r = tiles[i].getBoundingClientRect();
+  return { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+}
+
+function placeStruct(i, e) {
+  const id = state.placing, d = STRUCTS[id];
+  if (!d || !(state.sInv[id] > 0)) { state.placing = null; render(); return; }
+  if (state.plots[i]) { say('That tile has a plant on it. Pick an empty tile.'); return; }
+  if (!tileOpen(i)) { say(`🔒 This plot unlocks at Level ${plotLevel(i)}.`); pop('🔒', e); return; }
+  state.sInv[id]--;
+  state.structs[i] = { type: id, cd: 0 };
+  pop(d.emoji, e); say(`Placed ${d.name}.`);
+  if (!(state.sInv[id] > 0)) state.placing = null;
+  save(); render();
+}
+
+function structTick(dt) {
+  state.structs.forEach((st, i) => {
+    if (!st) return;
+    const d = STRUCTS[st.type];
+    st.cd = (st.cd || 0) - dt;
+    if (st.cd > 0) return;
+    st.cd = d.every;
+    let n = 0;
+    around(i, d.radius).forEach(j => {
+      const q = state.plots[j];
+      if (q && q.growth < 1 && q.water < WATER_SECONDS - 1) { q.water = WATER_SECONDS; n++; }
+    });
+    if (n && !quiet) st.flashUntil = Date.now() + 600;
+  });
+}
+
+function emptyTiles() {
+  const out = [];
+  for (let i = 0; i < state.plots.length; i++) if (inGrid(i) && !state.plots[i] && !state.structs[i] && tileOpen(i)) out.push(i);
+  return out;
+}
+
+function plantOptions(cur) {
+  const list = SEEDS.filter(x => state.level >= UNLOCK[x.id]).concat(SPECIALS.filter(x => state.inv[x.id] > 0));
+  if (cur && !list.some(x => x.id === cur) && anySeed(cur)) list.push(anySeed(cur));
+  return list;
+}
+
+// Each planter drops its seed into a random empty tile anywhere in the garden.
+function planterTick(dt) {
+  state.planters.forEach(pl => {
+    pl.cd = (pl.cd || 0) - dt;
+    if (pl.cd > 0) return;
+    pl.cd = PLANTER.every;
+    const s = anySeed(pl.seed);                       // 'off' has no seed and does nothing
+    if (!s || (!isSpecial(s) && state.level < UNLOCK[s.id])) return;
+    const spots = emptyTiles();
+    if (!spots.length) return;
+    if (isSpecial(s)) { if (!(state.inv[s.id] > 0)) return; state.inv[s.id]--; }
+    else { if (state.coins < s.cost) return; state.coins -= s.cost; }
+    state.plots[spots[Math.floor(Math.random() * spots.length)]] = newPlot(s.id);
+  });
+}
+
+// Snake route over the garden: row by row ('h') or column by column ('v').
+function tractorPath() {
+  const n = state.size, out = [];
+  for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+    const k = a % 2 ? n - 1 - b : b;
+    out.push(state.tdir === 'v' ? k * SIZE + a : a * SIZE + k);
+  }
+  return out;
+}
+// Tractors sweep the route forward then back (ping-pong), so they never jump across the board.
+function stepCell(path, k) {
+  const P = path.length, L = 2 * (P - 1), m = ((k % L) + L) % L;
+  return path[m <= P - 1 ? m : L - m];
+}
+function tractorTick(dt) {
+  const n = state.tractors;
+  if (!n) return;
+  const path = tractorPath(), L = Math.max(1, 2 * (path.length - 1));
+  const old = state.tpos;
+  state.tpos += dt * TRACTOR.speed;
+  for (let t = 0; t < n; t++) {
+    const off = t * L / n, a = Math.floor(old + off), b = Math.floor(state.tpos + off);
+    for (let k = a + 1; k <= b; k++) {
+      const i = stepCell(path, k), q = state.plots[i];
+      if (q && q.growth >= 1) { if (!quiet) lastUnlock = ''; harvestCore(i, tileEvt(i)); }
+    }
+  }
+  if (state.tpos >= L) state.tpos -= L * Math.floor(state.tpos / L);
+}
+
+const trEl = document.createElement('div');
+trEl.id = 'tractors';
+plotEl.appendChild(trEl);
+function renderTractors() {
+  const n = state.tractors;
+  while (trEl.children.length < n) { const d = document.createElement('div'); d.className = 'tractor'; d.innerHTML = art('tractor'); trEl.appendChild(d); }
+  while (trEl.children.length > n) trEl.lastChild.remove();
+  if (!n) return;
+  const path = tractorPath(), L = Math.max(1, 2 * (path.length - 1));
+  const center = i => { const t = tiles[i]; return [t.offsetLeft + t.offsetWidth / 2, t.offsetTop + t.offsetHeight / 2]; };
+  Array.from(trEl.children).forEach((el, t) => {
+    const sp = (((state.tpos + t * L / n) % L) + L) % L, k = Math.floor(sp), f = sp - k;
+    const [x0, y0] = center(stepCell(path, k)), [x1, y1] = center(stepCell(path, k + 1));
+    el.style.left = (x0 + (x1 - x0) * f) + 'px';
+    el.style.top = (y0 + (y1 - y0) * f) + 'px';
+    if (Math.abs(x1 - x0) > 1) el.style.setProperty('--flip', x1 < x0 ? -1 : 1);
+  });
+}
+
+const barEl = document.getElementById('structBar');
+let barKey = '';
+function renderStructBar() {
+  const i = state.active, st = i != null ? state.structs[i] : null;
+  if (!st) { if (barKey !== '') { barKey = ''; barEl.innerHTML = ''; barEl.hidden = true; } return; }
+  const d = STRUCTS[st.type], key = JSON.stringify([i, st.type]);
+  if (key === barKey) return;
+  barKey = key; barEl.hidden = false;
+  barEl.innerHTML = `<div class="h">${d.emoji} ${d.name}</div><div>${d.desc} Pulses every ${d.every}s.</div><div><button class="clay" data-pickup>Pick up</button><button class="clay" data-close>Close</button></div>`;
+}
+barEl.addEventListener('click', e => {
+  const st = state.structs[state.active];
+  if (!st) return;
+  if (e.target.closest('[data-pickup]')) {
+    state.sInv[st.type] = (state.sInv[st.type] || 0) + 1;
+    state.structs[state.active] = null; state.active = null;
+    say('Picked it up. It is back in your workshop storage.'); save(); render();
+  } else if (e.target.closest('[data-close]')) { state.active = null; render(); }
+});
+
+const wsEl = document.getElementById('panel-workshop');
+let wsKey = '';
+function renderWorkshop() {
+  const ids = Object.keys(STRUCTS), ec = expandCost();
+  const key = JSON.stringify([state.level, state.placing, state.size, state.tractors, state.tdir, state.planters.map(x => x.seed),
+    SPECIALS.map(x => state.inv[x.id] || 0), ids.map(id => [state.sInv[id] || 0, ownedStructs(id), state.coins >= structCost(id)]),
+    state.coins >= tractorCost(), state.coins >= planterCost(), ec ? state.coins >= ec : null]);
+  if (key === wsKey) return;
+  wsKey = key;
+  const head = t => `<div class="curio-head"><span>${t}</span></div>`;
+
+  const rows = ids.map(id => {
+    const d = STRUCTS[id], locked = state.level < d.unlock, c = structCost(id), store = state.sInv[id] || 0;
+    const placed = ownedStructs(id) - store;
+    return `<div class="offer clay ws ${locked ? 'locked' : ''}"><div class="e">${art(id)}</div>
+      <div class="info"><div class="n">${d.name}</div><div class="d">${d.desc}</div>
+      <div class="m">${locked ? '🔒 Unlocks at Level ' + d.unlock : `In storage: ${store} · Placed: ${placed}`}</div></div>
+      <div class="btns"><button class="clay" data-wbuy="${id}" ${locked || state.coins < c ? 'disabled' : ''}>Buy 🪙${c}</button>
+      ${store > 0 ? `<button class="clay place ${state.placing === id ? 'on' : ''}" data-wplace="${id}">${state.placing === id ? 'Cancel' : 'Place'}</button>` : ''}</div></div>`;
+  }).join('');
+
+  const tLocked = state.level < TRACTOR.unlock, tMax = state.tractors >= TRACTOR.max, tc = tractorCost();
+  const tractor = `<div class="offer clay ws ${tLocked ? 'locked' : ''}"><div class="e">${art('tractor')}</div>
+    <div class="info"><div class="n">${TRACTOR.name} · ${state.tractors}/${TRACTOR.max}</div>
+    <div class="d">Drives a snake route across the garden and harvests every ripe plant it passes, even while you're away.</div>
+    <div class="seg">${tLocked ? '🔒 Unlocks at Level ' + TRACTOR.unlock : `Route:
+      <button data-tdir="h" class="clay ${state.tdir === 'h' ? 'on' : ''}">↔ Rows</button>
+      <button data-tdir="v" class="clay ${state.tdir === 'v' ? 'on' : ''}">↕ Columns</button>`}</div></div>
+    <div class="btns"><button class="clay" data-wtractor ${tLocked || tMax || state.coins < tc ? 'disabled' : ''}>${tMax ? 'Max' : 'Buy 🪙' + tc}</button></div></div>`;
+
+  const pLocked = state.level < PLANTER.unlock, pMax = state.planters.length >= PLANTER.max, pc = planterCost();
+  const planter = `<div class="offer clay ws ${pLocked ? 'locked' : ''}"><div class="e">${art('planter')}</div>
+    <div class="info"><div class="n">${PLANTER.name} · ${state.planters.length}/${PLANTER.max}</div>
+    <div class="d">Plants its seed into a random empty tile anywhere in the garden every ${PLANTER.every}s. Uses no tile. You pay for each seed.</div>
+    ${pLocked ? '<div class="m">🔒 Unlocks at Level ' + PLANTER.unlock + '</div>' : state.planters.map((pl, k) =>
+      `<div class="pl">#${k + 1} <select id="planter-${k}" data-pl="${k}"><option value="off" ${pl.seed === 'off' ? 'selected' : ''}>⏸ Off</option>` +
+      plantOptions(pl.seed).map(o => `<option value="${o.id}" ${o.id === pl.seed ? 'selected' : ''}>${o.emoji} ${o.name} · ${isSpecial(o) ? '×' + (state.inv[o.id] || 0) + ' in satchel' : '🪙' + o.cost}</option>`).join('') +
+      `</select></div>`).join('')}</div>
+    <div class="btns"><button class="clay" data-wplanter ${pLocked || pMax || state.coins < pc ? 'disabled' : ''}>${pMax ? 'Max' : 'Buy 🪙' + pc}</button></div></div>`;
+
+  const next = state.size + 1;
+  const land = ec
+    ? `<div class="offer clay ws"><div class="e">${art('land')}</div><div class="info"><div class="n">Expand garden to ${next}×${next}</div>
+        <div class="d">Adds a new row and column of plots.</div><div class="m">Currently ${state.size}×${state.size}</div></div>
+        <div class="btns"><button class="clay" data-wexpand ${state.coins < ec ? 'disabled' : ''}>Buy 🪙${ec}</button></div></div>`
+    : `<div class="offer clay ws"><div class="e">${art('land')}</div><div class="info"><div class="n">Garden fully expanded</div><div class="m">${state.size}×${state.size}</div></div></div>`;
+
+  wsEl.innerHTML = head('Sprinklers · each one takes up a tile') + rows + head('Machines · these use no tiles') + tractor + planter + head('Land') + land;
+}
+wsEl.addEventListener('click', e => {
+  const q = sel => e.target.closest(sel);
+  let b;
+  if ((b = q('[data-wbuy]'))) {
+    const id = b.dataset.wbuy, d = STRUCTS[id], c = structCost(id);
+    if (state.level < d.unlock || state.coins < c) return;
+    state.coins -= c; state.sInv[id] = (state.sInv[id] || 0) + 1;
+    state.placing = id; state.active = null;
+    say(`Bought a ${d.name}! Tap an empty tile to place it.`);
+    pop(`-🪙${c}`, e); save(); render(); return;
+  }
+  if ((b = q('[data-wplace]'))) { state.placing = state.placing === b.dataset.wplace ? null : b.dataset.wplace; state.active = null; render(); return; }
+  if (q('[data-wtractor]')) {
+    const c = tractorCost();
+    if (state.level < TRACTOR.unlock || state.tractors >= TRACTOR.max || state.coins < c) return;
+    state.coins -= c; state.tractors++;
+    say('Bought a tractor! It starts rolling across the garden right away.'); pop(`-🪙${c}`, e); save(); render(); return;
+  }
+  if (q('[data-wplanter]')) {
+    const c = planterCost();
+    if (state.level < PLANTER.unlock || state.planters.length >= PLANTER.max || state.coins < c) return;
+    state.coins -= c; state.planters.push({ seed: 'carrot', cd: 0 });
+    say('Bought an Auto-Planter! Pick its seed in the list.'); pop(`-🪙${c}`, e); save(); render(); return;
+  }
+  if (q('[data-wexpand]')) {
+    const c = expandCost();
+    if (!c || state.coins < c) return;
+    state.coins -= c; state.size++; state.tpos = 0;
+    say(`Your garden grew to ${state.size}×${state.size}! 🏞️`); pop(`-🪙${c}`, e); chime([392, 523, 659, 784], 0.2); save(); render(); return;
+  }
+  if ((b = q('[data-tdir]'))) { state.tdir = b.dataset.tdir; state.tpos = 0; save(); render(); }
+});
+wsEl.addEventListener('change', e => {
+  const sel = e.target.closest('select[data-pl]');
+  if (sel && state.planters[+sel.dataset.pl]) { state.planters[+sel.dataset.pl].seed = sel.value; save(); render(); }
+});
+
+/* ---------- journal: orders, goals, almanac ---------- */
+const jEl = document.getElementById('panel-journal');
+let jKey = '', resetArmed = 0;
+function renderJournal() {
+  const key = JSON.stringify([state.orders.map(o => o.items ? [o.cust, o.items.map(i => i.have)] : 'w'), state.goals, state.stats,
+    state.level, state.harvested, state.ordersDone, state.bestStreak, state.goldHarvested, state.tractors, state.size, resetArmed > Date.now()]);
+  if (key !== jKey) {
+    jKey = key;
+    const orders = state.orders.map((o, k) => {
+      if (!o.items) return `<div class="order waiting">🚶 Next customer in <span data-wait="${k}">${Math.ceil(o.wait)}s</span></div>`;
+      const [face, name] = CUSTOMERS[o.cust], done = orderDone(o);
+      const chips = o.items.map(it => { const s = anySeed(it.id), ok = it.have >= it.need;
+        return `<span class="chip ${ok ? 'done' : ''}">${art(s.id, 'mini')} ${Math.min(it.have, it.need)}/${it.need}</span>`; }).join('');
+      return `<div class="order clay ${done ? 'ready' : ''}"><div class="face">${face}</div>
+        <div class="info" style="flex:1;min-width:0"><div class="who">${name}</div><div class="wants">${chips}</div>
+        <div class="rw">Pays 🪙${o.coins} · ✨ ${o.xp} XP${o.seed ? ` · ${art(o.seed, 'mini')} seed` : ''}</div></div>
+        <div class="acts"><button class="give clay" data-deliver="${k}" ${done ? '' : 'disabled'}>${done ? 'Deliver' : 'Growing'}</button>
+        ${done ? '' : `<button class="skip" data-skip="${k}">Pass</button>`}</div></div>`;
+    }).join('');
+
+    const shown = GOALS.filter(g => state.goals[g.id] !== 'claimed').slice(0, 5);
+    const claimed = GOALS.filter(g => state.goals[g.id] === 'claimed').length;
+    const goals = shown.map(g => {
+      const st = state.goals[g.id];
+      return `<div class="goal ${st === 'ready' ? 'ready' : ''}"><div class="gi">${g.icon}</div>
+        <div class="gt"><b>${g.name}</b><br>${g.desc} · 🪙${g.reward}</div>
+        ${st === 'ready' ? `<button class="clay" data-goal="${g.id}">Claim</button>` : `<span class="pr">${Math.min(g.n(), g.of).toLocaleString()}/${g.of.toLocaleString()}</span>`}</div>`;
+    }).join('') || '<div class="goal claimed"><div class="gi">🌟</div><div class="gt"><b>Every goal complete</b></div></div>';
+
+    const alm = ALL.map(s => {
+      const c = state.stats[s.id] || 0, locked = state.level < UNLOCK[s.id];
+      if (c) return `<div class="alm" title="${s.name}"><span class="ae">${art(s.id)}</span><span class="an">${c.toLocaleString()}</span></div>`;
+      return `<div class="alm unknown" title="${locked ? 'Unlocks at Level ' + UNLOCK[s.id] : 'Not grown yet'}"><span class="ae">${locked ? art('lock') : art(s.id, 'mystery')}</span><span class="an">${locked ? 'Lv ' + UNLOCK[s.id] : '—'}</span></div>`;
+    }).join('');
+    const found = ALL.filter(s => state.stats[s.id]).length;
+
+    jEl.innerHTML = `<div class="jhead">Orders <small>${state.ordersDone} delivered</small></div>${orders}
+      <div class="jhead">Goals <small>${claimed}/${GOALS.length} complete</small></div><div class="goals">${goals}</div>
+      <div class="jhead">Almanac <small>${found}/${ALL.length} discovered · ${state.goldHarvested} golden</small></div><div class="almanac">${alm}</div>
+      <div class="resetrow"><button class="resetbtn ${resetArmed > Date.now() ? 'armed' : ''}" data-reset>${resetArmed > Date.now() ? 'Tap again to erase your garden' : 'Start a new garden'}</button></div>`;
+  }
+  jEl.querySelectorAll('[data-wait]').forEach(sp => { const o = state.orders[+sp.dataset.wait]; if (o && !o.items) sp.textContent = Math.max(0, Math.ceil(o.wait)) + 's'; });
+}
+jEl.addEventListener('click', e => {
+  let b;
+  if ((b = e.target.closest('[data-deliver]'))) { deliverOrder(+b.dataset.deliver, e); return; }
+  if ((b = e.target.closest('[data-skip]'))) { state.orders[+b.dataset.skip] = { wait: ORDER_WAIT }; say('No worries. Someone new will stop by soon.'); save(); render(); return; }
+  if ((b = e.target.closest('[data-goal]'))) { claimGoal(b.dataset.goal, e); return; }
+  if (e.target.closest('[data-reset]')) {
+    if (resetArmed > Date.now()) {
+      try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_KEY); } catch (err) {}
+      wiping = true; location.reload(); return;
+    }
+    resetArmed = Date.now() + 4000; render(); setTimeout(render, 4100);
+  }
+});
+let wiping = false;
+
+/* ---------- shops ---------- */
+const menuEl = document.getElementById('menu');
+SEEDS.forEach(s => {
+  const b = document.createElement('button');
+  b.className = 'seed clay'; b.dataset.id = s.id;
+  b.innerHTML = `<span class="e">${art(s.id)}</span><span class="n">${s.name}</span><span class="c cc">🪙${s.cost} → 🪙${s.sell}</span><span class="c xx">✨ ${XP[s.id]} XP</span>`;
+  b.addEventListener('click', () => {
+    if (state.level < UNLOCK[s.id]) { say(`🔒 ${s.name} unlocks at Level ${UNLOCK[s.id]}.`); return; }
+    state.placing = null; state.selected = s.id; say(`${s.name}: ready in about ${s.time}s of watered growing.`); render(); });
+  menuEl.appendChild(b);
+});
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  if (t.dataset.tab === 'curio' && state.level < CURIO_LEVEL) { say(`🔒 The Curio Shop opens at Level ${CURIO_LEVEL}.`); return; }
+  if (t.dataset.tab === 'workshop' && state.level < WORKSHOP_LEVEL) { say(`🔒 The Workshop opens at Level ${WORKSHOP_LEVEL}.`); return; }
+  state.tab = t.dataset.tab; save(); render();
+}));
+
+const curioEl = document.getElementById('panel-curio');
+curioEl.addEventListener('click', e => {
+  const buy = e.target.closest('[data-buy]');
+  if (buy) {
+    const idx = +buy.dataset.buy, s = anySeed(state.shop.ids[idx]);
+    if (!(state.shop.stock[idx] > 0) || state.coins < s.cost) return;
+    state.coins -= s.cost; state.shop.stock[idx]--;
+    state.inv[s.id] = (state.inv[s.id] || 0) + 1;
+    state.selected = s.id;
+    say(`Bought ${s.name}! It's in your satchel and selected for planting.`);
+    pop(`-🪙${s.cost}`, e); chime([659, 880], 0.1); save(); render();
+  }
+  if (e.target.closest('[data-reroll]')) {
+    if (state.coins < REROLL_COST) return;
+    state.coins -= REROLL_COST; rollShop('The shopkeeper shuffled the shelves. ✨'); render();
+  }
+});
+
+const satchelEl = document.getElementById('satchel');
+satchelEl.addEventListener('click', e => {
+  const b = e.target.closest('[data-bag]');
+  if (!b) return;
+  state.placing = null; state.selected = b.dataset.bag; const s = anySeed(state.selected);
+  say(`${s.name}: ${s.desc}`); save(); render();
+});
+
+let shopKey = '', bagKey = '';
+function renderShops() {
+  const curioLocked = state.level < CURIO_LEVEL;
+  const wsLocked = state.level < WORKSHOP_LEVEL;
+  if (curioLocked && state.tab === 'curio') state.tab = 'seeds';
+  if (wsLocked && state.tab === 'workshop') state.tab = 'seeds';
+  document.querySelector('.tab.workshop').textContent = wsLocked ? `🔒 Lv ${WORKSHOP_LEVEL}` : 'Workshop';
+  document.querySelector('.tab.curio').textContent = curioLocked ? `🔒 Lv ${CURIO_LEVEL}` : 'Curios';
+  const nc = claimables();
+  document.querySelector('.tab.journal').innerHTML = 'Journal' + (nc ? `<span class="badge">${nc}</span>` : '');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === state.tab));
+  document.getElementById('panel-seeds').hidden = state.tab !== 'seeds';
+  jEl.hidden = state.tab !== 'journal';
+  curioEl.hidden = state.tab !== 'curio';
+  wsEl.hidden = state.tab !== 'workshop';
+  renderWorkshop();
+  renderJournal();
+
+  const key = JSON.stringify([state.level, state.shop, state.shop.ids.map(id => state.coins >= anySeed(id).cost), state.coins >= REROLL_COST]);
+  if (key !== shopKey) {
+    shopKey = key;
+    const offers = state.shop.ids.map((id, idx) => {
+      const s = anySeed(id), left = state.shop.stock[idx], sold = left <= 0, poor = state.coins < s.cost;
+      return `<div class="offer clay"><div class="e">${art(s.id)}</div>
+        <div class="info"><div class="n">${s.name}</div><div class="d">${s.desc}</div>
+        <div class="m">Grows in ~${s.time}s · sells for 🪙${s.sell} · ✨ ${xpOf(s)} XP</div></div>
+        <button class="clay buy" data-buy="${idx}" ${sold || poor ? 'disabled' : ''}>${sold ? 'Sold out' : '🪙' + s.cost + ' · ' + left + ' left'}</button></div>`;
+    }).join('');
+    curioEl.innerHTML = `<div class="curio-head"><span>New wares in <span id="timer">--</span></span>
+      <button class="clay" data-reroll ${state.coins < REROLL_COST ? 'disabled' : ''}>Reroll 🪙${REROLL_COST}</button></div>${offers}${curioFooter()}`;
+  }
+  const t = document.getElementById('timer');
+  if (t) t.textContent = Math.max(0, Math.ceil((state.shop.next - Date.now()) / 1000)) + 's';
+
+  document.querySelectorAll('.seed').forEach(b => {
+    const s = anySeed(b.dataset.id), locked = state.level < UNLOCK[s.id];
+    b.classList.toggle('sel', s.id === state.selected);
+    b.classList.toggle('poor', !locked && state.coins < s.cost);
+    b.classList.toggle('locked', locked);
+    if (b._lk !== locked) { b._lk = locked; b.querySelector('.e').innerHTML = art(locked ? 'lock' : s.id); }
+    b.querySelector('.cc').textContent = locked ? `Unlocks Lv ${UNLOCK[s.id]}` : `🪙${s.cost} → 🪙${s.sell}`;
+    b.querySelector('.xx').textContent = locked ? '' : `✨ ${XP[s.id]} XP`;
+  });
+
+  const owned = SPECIALS.filter(s => state.inv[s.id] > 0);
+  const bk = JSON.stringify([owned.map(s => [s.id, state.inv[s.id]]), state.selected]);
+  if (bk !== bagKey) {
+    bagKey = bk;
+    satchelEl.hidden = !owned.length;
+    satchelEl.innerHTML = owned.length ? `<h3>🎒 Satchel (tap to plant these)</h3><div class="row">` +
+      owned.map(s => `<button class="bag clay ${s.id === state.selected ? 'sel' : ''}" data-bag="${s.id}">${art(s.id, 'mini')} ${s.name} ×${state.inv[s.id]}</button>`).join('') + `</div>` : '';
+  }
+}
+
+/* ---------- render + loop ---------- */
+const setHtml = (el, h) => { if (el._h !== h) { el._h = h; el.innerHTML = h; } };
+let shownCoins = null;
+function render() {
+  const coinEl = document.getElementById('coins');
+  document.getElementById('coinsN').textContent = state.coins.toLocaleString();
+  if (shownCoins !== null && state.coins > shownCoins) { coinEl.classList.add('bump'); setTimeout(() => coinEl.classList.remove('bump'), 160); }
+  shownCoins = state.coins;
+  document.getElementById('countN').textContent = state.harvested.toLocaleString();
+  document.getElementById('streakN').textContent = state.streak;
+  document.getElementById('sound').textContent = state.sound ? '🔊' : '🔇';
+  plotEl.style.setProperty('--n', state.size);
+  const need = xpNeeded(state.level);
+  document.getElementById('lvlName').textContent = `Level ${state.level}`;
+  document.getElementById('lvlInfo').textContent = `${state.xp} / ${need} XP · +${Math.round((levelBonus() - 1) * 100)}% coins`;
+  document.getElementById('lvlFill').style.width = Math.min(100, state.xp / need * 100) + '%';
+  document.getElementById('nextUnlock').textContent = nextUnlockText();
+  const sel = anySeed(state.selected);
+  const selEl = document.getElementById('sel');
+  if (state.placing) {
+    const d = STRUCTS[state.placing];
+    setHtml(selEl, `Placing ${art(state.placing, 'mini')} ${d.name}: tap an empty tile (Cancel in the Workshop)`);
+    selEl.classList.add('placing');
+  } else {
+    selEl.classList.remove('placing');
+    setHtml(selEl, `Planting ${art(sel.id, 'mini')} ${sel.name}` + (isSpecial(sel) ? ` ×${state.inv[sel.id] || 0}` : ''));
+  }
+  renderStructBar();
+  renderShops();
+
+  tiles.forEach((t, i) => {
+    const show = inGrid(i);
+    if (t._show !== show) { t._show = show; t.style.display = show ? '' : 'none'; }
+    if (!show) return;
+    const p = state.plots[i], st = state.structs[i], cls = ['tile'];
+    let sig = 'e', html = '', title = '';
+    if (st) {
+      const d = STRUCTS[st.type];
+      cls.push('struct');
+      if (state.active === i) cls.push('picked');
+      if (st.flashUntil && Date.now() < st.flashUntil) cls.push('spray');
+      title = `${d.name}: ${d.desc}`; sig = 's' + st.type;
+      html = `<div class="crop" style="--cw:${st.type === 'mega' ? 112 : 96}%">${art(st.type)}</div>`;
+    } else if (!p && !tileOpen(i)) {
+      cls.push('locked'); title = `Unlocks at Level ${plotLevel(i)}`; sig = 'L' + plotLevel(i);
+      html = `<div class="crop" style="--cw:54%">${art('lock')}</div><span class="lv">Lv ${plotLevel(i)}</span>`;
+    } else if (p) {
+      const s = anySeed(p.seed), ripe = p.growth >= 1, wet = p.water > 0, stage = ripe ? s.id : p.growth < 0.33 ? 'sprout' : 'young';
+      if (wet && !ripe) cls.push('wet');
+      if (ripe) cls.push('ripe');
+      if (p.gold) { cls.push('gold'); title = `Golden ${s.name}: sells for ${GOLD_MULT}×`; }
+      if (isSpecial(s)) { cls.push('special'); title = `${s.name}: ${s.desc}`; }
+      if (!wet && !ripe && s.fx !== 'hardy') cls.push('thirsty');
+      sig = 'p' + stage + (p.gold ? 'g' : '') + (isSpecial(s) ? 's' : '');
+      html = `<div class="bar"><i></i></div><div class="crop" style="--cw:${ripe ? 108 : stage === 'sprout' ? 72 : 90}%">${art(stage)}</div>` +
+        (p.gold || isSpecial(s) ? '<span class="star">✦</span>' : '') + '<div class="water"><i></i></div>';
+    }
+    const c = cls.join(' ');
+    if (t.className !== c) t.className = c;
+    if (t.title !== title) t.title = title;
+    if (t._sig !== sig) { t._sig = sig; t.innerHTML = html; t._bar = t.querySelector('.bar i'); t._water = t.querySelector('.water i'); }
+    if (p && !st && t._bar) {
+      t._bar.style.width = Math.min(1, p.growth) * 100 + '%';
+      t._water.style.width = (p.growth >= 1 ? 0 : Math.max(0, Math.min(1, p.water / WATER_SECONDS))) * 100 + '%';
+    }
+  });
+  renderTractors();
+}
+
+function tick(dt) {
+  // Rain aura first, so lilies and their neighbors count as damp this tick.
+  state.plots.forEach((p, i) => {
+    if (p && p.growth < 1 && fxOf(p) === 'rain') {
+      p.water = Math.max(p.water, 3);
+      nb(i).forEach(j => { const q = state.plots[j]; if (q && q.growth < 1) q.water = Math.max(q.water, 3); });
+    }
+  });
+  state.plots.forEach((p, i) => {
+    if (!p || p.growth >= 1) return;
+    const s = anySeed(p.seed);
+    if (raining || p.water > 0) {
+      if (!raining) {
+        const mulched = nb(i).some(j => state.plots[j] && fxOf(state.plots[j]) === 'mulch');
+        p.water = Math.max(0, p.water - dt * (mulched ? 0.5 : 1));
+      }
+      p.growth = Math.min(1, p.growth + dt * (s.fx === 'fast' ? 2 : 1) * (raining ? 0.5 : 1) / s.time);   // rain grows at half speed
+    } else if (s.fx === 'hardy') {
+      p.growth = Math.min(1, p.growth + dt * 0.5 / s.time);
+    }
+  });
+  structTick(dt);
+  planterTick(dt);
+  tractorTick(dt);
+}
+
+// Fast-forwards time away. A soft rain keeps every plant growing; ripe crops wait (or get harvested by tractors).
+function catchUp(sec) {
+  sec = Math.min(sec, MAX_AWAY);
+  const before = { coins: state.coins, harvested: state.harvested, level: state.level, orders: state.orders.filter(orderDone).length };
+  quiet = true; raining = true; lastUnlock = '';
+  const step = sec > 1800 ? 2 : 1;
+  for (let left = sec; left > 0; left -= step) { const d = Math.min(step, left); tick(d); orderTick(d); }
+  quiet = false; raining = false;
+  state.plots.forEach(p => { if (p && p.growth < 1) p.water = Math.max(p.water, WATER_SECONDS * 0.5); });
+  const r = { sec, coins: state.coins - before.coins, harvested: state.harvested - before.harvested,
+    levels: state.level - before.level, ripe: state.plots.filter(p => p && p.growth >= 1).length,
+    orders: state.orders.filter(orderDone).length - before.orders, unlock: lastUnlock };
+  lastUnlock = '';
+  if (Date.now() >= state.shop.next) rollShop();
+  return r;
+}
+
+function fmtDur(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+  return h ? `${h}h ${m}m` : m ? `${m} min` : `${Math.round(sec)}s`;
+}
+const modalEl = document.getElementById('modal');
+function showModal(html, btn) {
+  modalEl.innerHTML = `<div class="sheet clay" role="dialog" aria-modal="true">${html}<button class="clay" id="modalOk">${btn}</button></div>`;
+  modalEl.hidden = false;
+  const ok = document.getElementById('modalOk');
+  ok.onclick = () => { modalEl.hidden = true; modalEl.innerHTML = ''; chime([523, 659], 0.1); };
+  try { ok.focus(); } catch (e) {}
+}
+function showWelcome(r, daily) {
+  const li = [];
+  if (r) {
+    li.push(`🌧️ A soft rain watered the garden for ${fmtDur(r.sec)}${r.sec >= MAX_AWAY ? ' (the most it can do)' : ''}.`);
+    if (r.harvested > 0) li.push(`🚜 Your machines harvested ${r.harvested.toLocaleString()} crops. Net coins: ${r.coins >= 0 ? '+' : '−'}🪙${Math.abs(r.coins).toLocaleString()}.`);
+    if (r.ripe > 0) li.push(`🧺 ${r.ripe} crop${r.ripe > 1 ? 's are' : ' is'} ripe and waiting for you.`);
+    if (r.orders > 0) li.push(`📋 ${r.orders} order${r.orders > 1 ? 's are' : ' is'} ready to deliver.`);
+    if (r.levels > 0) li.push(`🎉 You reached Level ${state.level}!${r.unlock ? ' ' + r.unlock : ''}`);
+  }
+  if (daily) li.push(`🎁 Daily gift: 🪙${daily.gift}${daily.seed ? ` and a ${anySeed(daily.seed).emoji} ${anySeed(daily.seed).name} seed` : ''}. 🔥 ${daily.streak}-day streak${daily.streak < 3 ? '. Come back tomorrow to grow it' : ''}.`);
+  showModal(`<div class="big">${art('sunflower')}</div><h2>Welcome back</h2><ul>${li.map(x => `<li>${x}</li>`).join('')}</ul>`, 'Into the garden');
+}
+function showIntro() {
+  showModal(`<div class="big">${art('young')}</div><h2>Welcome to Cozy Garden</h2><ul>
+    <li>🥕 Pick a seed and tap soil to plant. Tap a glowing plant to harvest.</li>
+    <li>💧 Plants grow while their soil is damp. Tap to water.</li>
+    <li>📋 Customers post orders in the Journal. Fill them for big rewards.</li>
+    <li>✨ Now and then a crop comes up golden and sells for ${GOLD_MULT}×.</li>
+    <li>🌧️ Close the page any time. Rain keeps your garden growing for up to 8 hours, and a gift waits each day.</li>
+  </ul>`, 'Start planting');
+}
+
+function dayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function dailyCheck() {
+  const now = new Date(), today = dayKey(now);
+  if (state.lastDay === today) return null;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  state.streak = state.lastDay === dayKey(y) ? (state.streak || 0) + 1 : 1;
+  state.bestStreak = Math.max(state.bestStreak || 0, state.streak);
+  state.lastDay = today;
+  if (fresh) return null;
+  const gift = Math.round((20 + 10 * Math.min(state.streak, 7)) * (1 + 0.15 * (state.level - 1)));
+  state.coins += gift;
+  let seed = null;
+  const curios = SPECIALS.filter(s => UNLOCK[s.id] <= state.level);
+  if (state.streak % 3 === 0 && state.level >= CURIO_LEVEL && curios.length) {
+    seed = curios[Math.floor(Math.random() * curios.length)].id;
+    state.inv[seed] = (state.inv[seed] || 0) + 1;
+  }
+  return { gift, streak: state.streak, seed };
+}
+
+/* ---------- boot ---------- */
+document.querySelectorAll('[data-art]').forEach(el => { el.innerHTML = art(el.dataset.art); });
+let awayReport = null;
+if (!fresh && !hotData && state.lastSeen) {
+  const away = (Date.now() - state.lastSeen) / 1000;
+  if (away > 20) awayReport = catchUp(away);
+}
+const daily = hotData ? null : dailyCheck();
+checkGoals();
+if (fresh) showIntro();
+else if (daily || (awayReport && awayReport.sec > 60)) showWelcome(awayReport && awayReport.sec > 60 ? awayReport : null, daily);
+else if (awayReport && awayReport.ripe) say(`Welcome back! ${awayReport.ripe} crop${awayReport.ripe > 1 ? 's are' : ' is'} ready to harvest.`);
+save();
+
+let lastWall = Date.now(), saveTimer = 0;
+setInterval(() => {
+  if (wiping) return;
+  const now = Date.now(), dt = Math.max(0, (now - lastWall) / 1000); lastWall = now;
+  if (dt > 5) {
+    const r = catchUp(dt);
+    if (dt > 60 && modalEl.hidden) showWelcome(r, null);
+  } else { tick(dt); orderTick(dt); }
+  if (Date.now() >= state.shop.next) rollShop('New wares at the Curio Shop! ✨');
+  // gentle safety net: a neighbor leaves coins if you're totally stuck
+  if (!state.plots.some(Boolean) && state.coins < 2) { state.coins += 5; say('A neighbor dropped off a few coins for seeds. 💛'); }
+  checkGoals();
+  saveTimer += dt; if (saveTimer > 5) { save(); saveTimer = 0; }
+  render();
+}, 250);
+addEventListener('pagehide', () => { if (!wiping) save(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && !wiping) save(); });
+
+render();
+</script>
+</body>
+</html>
