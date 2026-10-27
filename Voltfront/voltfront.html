@@ -1,0 +1,1326 @@
+<title>Voltfront</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tektur:wght@500;700;900&family=Barlow+Semi+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one-screen app. Hangar = squad bay → roster cards → deploy button → tab bar (Clash Mini order).
+   Game board screens are full-height with the grid as the hero. Single dark world: P03's machine room. */
+:root{
+  --void:#070b0c; --panel:#0f171a; --panel-2:#16222600; --raise:#1a272b; --line:#28383d; --line-2:#3a4e54;
+  --bone:#e6dec7; --bone-2:#cfc6ab; --bone-dim:#9d9886; --ink:#161c1b; --ink-2:#4a524d;
+  --crt:#9ef0c0; --cyan:#5ee6ff; --rust:#ff6b45;
+  --plate:#d6c08a; --arc:#5ee6ff; --surge:#a9f06b; --volt:#ffd25e;
+  --f-display:'Tektur','Bahnschrift','Arial Narrow',sans-serif;
+  --f-body:'Barlow Semi Condensed','Arial Narrow','Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--void);color:var(--bone);font-family:var(--f-body);font-size:15px;overflow:hidden;-webkit-tap-highlight-color:transparent}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(to bottom,rgba(158,240,192,.025) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+#app{height:100%;display:flex;flex-direction:column;max-width:560px;margin:0 auto;position:relative;
+  background:radial-gradient(120% 70% at 50% 0%,#11211f 0%,transparent 60%),
+  linear-gradient(transparent 0 calc(100% - 1px),rgba(94,230,255,.035) 0) 0 0/100% 28px,
+  linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(94,230,255,.035) 0) 0 0/28px 100%,var(--void)}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:4px 16px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px 8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.logo{display:flex;align-items:center;gap:10px}
+.logo b{font-family:var(--f-display);font-weight:900;font-size:22px;letter-spacing:.08em;color:var(--bone)}
+.logo b i{font-style:normal;color:var(--cyan);text-shadow:0 0 12px rgba(94,230,255,.6)}
+.logo svg{width:26px;height:26px}
+.record{font-family:var(--f-mono);font-size:12px;color:var(--crt);border:1px solid var(--line);padding:4px 8px;border-radius:3px;background:var(--panel);font-variant-numeric:tabular-nums}
+
+/* squad bay */
+.bay{background:linear-gradient(180deg,#121d20,#0d1517);border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:10px;position:relative}
+.bay::before{content:"";position:absolute;inset:3px;border:1px dashed rgba(158,240,192,.08);border-radius:4px;pointer-events:none}
+.bay-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lbl{font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.16em;color:var(--crt);text-transform:uppercase}
+.pow-read{font-family:var(--f-mono);font-size:13px;color:var(--bone);font-variant-numeric:tabular-nums}
+.pow-read em{font-style:normal;color:var(--cyan)}
+.reactor{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;height:10px}
+.reactor span{background:#1d2a2e;border-radius:1px;box-shadow:inset 0 0 0 1px #24343a}
+.reactor span.on{background:var(--cyan);box-shadow:0 0 8px rgba(94,230,255,.55)}
+.reactor span.over{background:var(--rust)}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.slot{aspect-ratio:3/4;max-width:100%;border:1px dashed var(--line-2);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(0,0,0,.25);position:relative;min-width:0}
+.slot canvas{width:78%;aspect-ratio:1;max-width:100%}
+.slot .sn{font-family:var(--f-display);font-size:10px;letter-spacing:.06em;color:var(--bone-2);text-transform:uppercase;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot.filled{border:1px solid #2f4a50;background:linear-gradient(180deg,#14262a,#0c1416)}
+.slot.empty::after{content:"EMPTY";font-family:var(--f-mono);font-size:9px;color:var(--ink-2);letter-spacing:.1em}
+.slot .x{position:absolute;top:2px;right:4px;font-size:11px;color:var(--bone-dim)}
+.protos{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-display);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:4px 7px;border-radius:3px;border:1px solid var(--line);color:var(--bone-dim);background:rgba(0,0,0,.25)}
+.chip .pips{display:inline-flex;gap:2px}
+.chip .pips i{width:5px;height:9px;background:#2a3639;border-radius:1px}
+.chip.on{color:var(--ink);border-color:transparent}
+.chip.on .pips i{background:rgba(0,0,0,.25)}
+.chip.on .pips i.f{background:var(--ink)}
+.chip .pips i.f{background:currentColor}
+
+/* roster */
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 8px}
+.sec-head small{font-size:12px;color:var(--bone-dim)}
+.roster{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.card{position:relative;background:linear-gradient(170deg,var(--bone) 0%,var(--bone-2) 100%);color:var(--ink);border-radius:5px;padding:5px 5px 6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0;
+  box-shadow:0 2px 0 #8d866f,0 6px 14px rgba(0,0,0,.45);transition:transform .15s ease,box-shadow .15s ease,filter .15s}
+.card::before{content:"";position:absolute;inset:0;border-radius:5px;pointer-events:none;
+  background:repeating-linear-gradient(115deg,rgba(80,60,20,.035) 0 2px,transparent 2px 5px)}
+.card .port{position:relative;background:#0b1214;border-radius:3px;aspect-ratio:1;max-width:100%;overflow:hidden;box-shadow:inset 0 0 0 1px #2a3b40}
+.card .port canvas{width:100%;height:100%;display:block}
+.card .port::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(94,230,255,.06) 0 1px,transparent 1px 3px)}
+.card .cost{position:absolute;top:3px;left:3px;z-index:2;font-family:var(--f-mono);font-weight:600;font-size:11px;color:var(--cyan);background:rgba(7,11,12,.85);padding:1px 4px 1px 3px;border-radius:2px;display:flex;align-items:center;gap:2px}
+.card .cost svg{width:8px;height:10px}
+.card .nm{font-family:var(--f-display);font-weight:700;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .rl{font-size:10.5px;color:var(--ink-2);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .tg{display:flex;gap:3px;margin-top:1px}
+.card .tg i{height:4px;flex:1;border-radius:1px}
+.card .info{position:absolute;top:3px;right:3px;z-index:2;width:20px;height:20px;border-radius:50%;background:rgba(7,11,12,.85);color:var(--bone);font-family:var(--f-mono);font-size:11px;display:grid;place-items:center}
+.card.in{transform:translateY(-3px);box-shadow:0 0 0 2px var(--cyan),0 0 18px rgba(94,230,255,.35),0 8px 16px rgba(0,0,0,.5)}
+.card.in .port::before{content:"IN SQUAD";position:absolute;z-index:3;bottom:3px;left:50%;transform:translateX(-50%) rotate(-4deg);font-family:var(--f-display);font-weight:900;font-size:9px;letter-spacing:.12em;color:var(--cyan);border:1px solid var(--cyan);padding:1px 4px;background:rgba(7,11,12,.8);white-space:nowrap}
+.card.blocked{filter:grayscale(.85) brightness(.62)}
+@media (hover:hover){.card:hover{transform:translateY(-2px)}.card.in:hover{transform:translateY(-4px)}}
+
+/* deploy bar under hangar */
+.playbar{padding-block:10px 8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:linear-gradient(180deg,transparent,rgba(7,11,12,.95) 30%)}
+.play{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 16px;border-radius:6px;
+  background:linear-gradient(180deg,#8ff1ff 0%,var(--cyan) 45%,#22b5d4 100%);color:#04232b;
+  box-shadow:0 4px 0 #137d95,0 0 28px rgba(94,230,255,.35);font-family:var(--f-display);font-weight:900;font-size:22px;letter-spacing:.14em;transition:transform .08s}
+.play:active{transform:translateY(3px);box-shadow:0 1px 0 #137d95,0 0 22px rgba(94,230,255,.3)}
+.play small{font-family:var(--f-body);font-weight:600;font-size:12px;letter-spacing:.04em;opacity:.75}
+.play[disabled]{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+
+/* tab bar */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:#0a1113;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 9px;font-family:var(--f-display);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--bone-dim)}
+.tabs button svg{width:20px;height:20px}
+.tabs button[aria-current="page"]{color:var(--cyan)}
+.tabs button[aria-current="page"] svg{filter:drop-shadow(0 0 6px rgba(94,230,255,.6))}
+
+/* codex & protocols */
+.dossier{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;grid-template-columns:84px 1fr;gap:12px;margin-bottom:10px}
+.dossier .dp{background:#0b1214;border-radius:4px;aspect-ratio:1;width:84px;box-shadow:inset 0 0 0 1px #2a3b40}
+.dossier .dp canvas{width:100%;height:100%;display:block}
+.dossier h3{font-family:var(--f-display);font-weight:900;font-size:18px;letter-spacing:.06em;text-transform:uppercase;margin:0;text-wrap:balance}
+.dossier .sub{font-size:13px;color:var(--bone-dim);margin-top:1px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
+.stats div{background:#0b1214;border:1px solid var(--line);border-radius:3px;padding:3px 4px;text-align:center}
+.stats b{display:block;font-family:var(--f-mono);font-size:14px;color:var(--bone);font-variant-numeric:tabular-nums}
+.stats span{font-family:var(--f-display);font-size:8.5px;letter-spacing:.14em;color:var(--bone-dim);text-transform:uppercase}
+.dl{grid-column:1/-1;display:grid;gap:7px;font-size:14px;line-height:1.35;min-width:0}
+.dl p{margin:0}
+.dl .k{font-family:var(--f-display);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--crt);display:block;margin-bottom:1px}
+.dl .ab{border-left:2px solid var(--cyan);padding-left:8px}
+.dl .ab b{font-family:var(--f-display);letter-spacing:.04em}
+.dl .ab .ec{font-family:var(--f-mono);font-size:12px;color:var(--cyan);margin-left:4px}
+.dl .sw{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dl .sw p{background:#0b1214;border-radius:3px;padding:6px 8px;border:1px solid var(--line);font-size:13px}
+.dl .pairs{font-size:13px;color:var(--bone-2)}
+.dl .pairs b{color:var(--bone)}
+.tagrow{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.tagrow .chip{font-size:9.5px;padding:2px 6px}
+.proto{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px;display:grid;gap:8px}
+.proto h3{margin:0;font-family:var(--f-display);font-weight:900;font-size:17px;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.proto h3 i{width:10px;height:16px;border-radius:1px;display:inline-block}
+.proto h3 small{font-family:var(--f-mono);font-weight:500;font-size:12px;color:var(--bone-dim);margin-left:auto;letter-spacing:0}
+.tier{display:grid;grid-template-columns:34px 1fr;gap:8px;align-items:start;font-size:14px;color:var(--bone-dim)}
+.tier b{font-family:var(--f-mono);font-size:12px;border:1px solid var(--line-2);border-radius:3px;text-align:center;padding:1px 0}
+.tier.on{color:var(--bone)}
+.tier.on b{color:var(--ink);border-color:transparent}
+.members{display:flex;flex-wrap:wrap;gap:5px}
+.members span{font-family:var(--f-display);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 6px;border-radius:3px;background:#0b1214;border:1px solid var(--line);color:var(--bone-dim)}
+.members span.in{color:var(--bone);border-color:var(--cyan)}
+.manual h3{font-family:var(--f-display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--crt);margin:16px 0 4px}
+.manual p,.manual li{font-size:15px;line-height:1.45;color:var(--bone-2);max-width:62ch}
+.manual ul{padding-left:18px;margin:4px 0}
+.manual b{color:var(--bone)}
+.pagetitle{font-family:var(--f-display);font-weight:900;font-size:20px;letter-spacing:.12em;text-transform:uppercase;margin:6px 0 10px}
+
+/* deploy & battle */
+.dhead{display:flex;align-items:center;gap:10px;padding-block:8px 6px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+.back{font-family:var(--f-display);font-size:11px;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line-2);padding:6px 9px;border-radius:4px;color:var(--bone-2);background:var(--panel)}
+.dtitle{flex:1;min-width:0}
+.dtitle b{display:block;font-family:var(--f-display);font-weight:900;font-size:16px;letter-spacing:.14em;text-transform:uppercase}
+.dtitle span{display:block;font-size:12px;color:var(--bone-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rnd{font-family:var(--f-mono);font-size:12px;color:var(--crt);text-align:right;line-height:1.2;font-variant-numeric:tabular-nums}
+.estrip{display:flex;gap:5px;flex-wrap:wrap;align-items:center;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));min-height:24px}
+.estrip .lbl{color:var(--rust);margin-right:2px}
+.estrip .chip{font-size:9.5px;padding:2px 6px}
+.boardwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 8px;position:relative}
+#board{display:block;touch-action:none;border-radius:4px;box-shadow:0 0 0 1px #24343a,0 0 0 6px #0c1315,0 0 0 7px #24343a,0 18px 40px rgba(0,0,0,.6)}
+.infoline{min-height:46px;padding-block:4px;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));font-size:13px;line-height:1.3;color:var(--bone-2)}
+.infoline b{font-family:var(--f-display);letter-spacing:.06em;color:var(--bone);text-transform:uppercase;font-size:12.5px}
+.infoline .e{color:var(--rust)} .infoline .p{color:var(--cyan)}
+.dbar{padding-block:6px 10px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-bottom:max(10px,env(safe-area-inset-bottom,0px));display:grid;gap:8px;background:#0a1113;border-top:1px solid var(--line)}
+.tray{display:flex;gap:6px;min-height:52px;align-items:center;overflow-x:auto}
+.tray .hint{font-size:12.5px;color:var(--bone-dim)}
+.tchip{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:3px 9px 3px 3px;border-radius:4px;background:var(--bone);color:var(--ink);font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 2px 0 #8d866f}
+.tchip canvas{width:40px;height:40px;background:#0b1214;border-radius:3px}
+.tchip.sel{box-shadow:0 0 0 2px var(--cyan),0 0 14px rgba(94,230,255,.4)}
+.btnrow{display:flex;gap:6px}
+.btn{font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:10px 10px;border-radius:4px;border:1px solid var(--line-2);background:var(--panel);color:var(--bone-2)}
+.btn[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan)}
+.btn.go{flex:1;background:linear-gradient(180deg,#8ff1ff,var(--cyan) 50%,#22b5d4);color:#04232b;border:0;font-weight:900;font-size:15px;letter-spacing:.16em;box-shadow:0 3px 0 #137d95}
+.btn.go[disabled]{filter:grayscale(1) brightness(.55)}
+.speed{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden}
+.speed button{font-family:var(--f-mono);font-size:12px;padding:9px 10px;color:var(--bone-dim)}
+.speed button[aria-pressed="true"]{background:var(--cyan);color:#04232b}
+
+/* sheet & modal */
+.veil{position:fixed;inset:0;z-index:40;background:rgba(3,6,7,.72);display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+.sheet{width:100%;max-width:560px;max-height:88%;overflow-y:auto;background:#0d1517;border-top:1px solid var(--line-2);border-radius:10px 10px 0 0;padding-block:14px max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet .dossier{border:0;padding:0;background:none}
+.sheet .row{display:flex;gap:8px;margin-top:6px}
+.result{align-items:center}
+.rbox{width:min(92%,380px);background:#0d1517;border:1px solid var(--line-2);border-radius:8px;padding:20px;text-align:center;display:grid;gap:12px}
+.rbox h2{margin:0;font-family:var(--f-display);font-weight:900;font-size:34px;letter-spacing:.16em}
+.rbox p{margin:0;color:var(--bone-2);font-size:14px}
+.rbox .rs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rbox .rs div{background:#0b1214;border:1px solid var(--line);border-radius:4px;padding:6px}
+.rbox .rs b{display:block;font-family:var(--f-mono);font-size:18px}
+.rbox .rs span{font-family:var(--f-display);font-size:9px;letter-spacing:.14em;color:var(--bone-dim);text-transform:uppercase}
+.rbox .btn{width:100%}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:#1b0f0b;border:1px solid var(--rust);color:#ffd8cb;font-size:13px;padding:8px 12px;border-radius:4px;max-width:88%;text-align:center;transition:opacity .2s}
+@media (max-width:380px){.card .rl{display:none}.roster{gap:6px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div id="app">
+  <header class="top" id="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 26 26" aria-hidden="true"><path d="M13 1.5 23 7.2v11.6L13 24.5 3 18.8V7.2Z" fill="none" stroke="#5ee6ff" stroke-width="1.6"/><path d="M14.5 5 8.5 14h4l-1.5 7 6.5-9.5h-4.2Z" fill="#5ee6ff"/></svg>
+      <b>VOLT<i>FRONT</i></b>
+    </div>
+    <div class="record" id="record">W 0 · L 0</div>
+  </header>
+
+  <section class="screen" id="scr-hangar">
+    <div class="scroll">
+      <div class="bay">
+        <div class="bay-head"><span class="lbl">Active squad</span><span class="pow-read" id="powread"></span></div>
+        <div class="reactor" id="reactor" aria-hidden="true"></div>
+        <div class="slots" id="slots"></div>
+        <div class="protos" id="protos"></div>
+      </div>
+      <div class="sec-head"><span class="lbl">Mech roster</span><small>Tap to add or remove · ⓘ for details</small></div>
+      <div class="roster" id="roster"></div>
+    </div>
+    <div class="playbar"><button class="play" id="playBtn">DEPLOY <small id="playSub">vs random squad</small></button></div>
+  </section>
+
+  <section class="screen" id="scr-codex" hidden><div class="scroll"><div class="pagetitle">Codex</div><div id="codexList"></div></div></section>
+  <section class="screen" id="scr-protocols" hidden><div class="scroll"><div class="pagetitle">Protocols</div><p style="margin:-4px 0 12px;color:var(--bone-dim);font-size:14px;max-width:60ch">Every mech carries one or two protocol tags. Field enough mechs sharing a tag and the whole squad's wiring changes.</p><div id="protoList"></div></div></section>
+  <section class="screen" id="scr-manual" hidden><div class="scroll manual" id="manual"></div></section>
+
+  <section class="screen" id="scr-field" hidden>
+    <div class="dhead">
+      <button class="back" id="backBtn">‹ Hangar</button>
+      <div class="dtitle"><b id="ftitle">Deployment</b><span id="fsub">Place your mechs on the lit rows</span></div>
+      <div class="rnd" id="fround"></div>
+    </div>
+    <div class="estrip" id="estrip"></div>
+    <div class="boardwrap" id="boardwrap"><canvas id="board" width="10" height="10" aria-label="Battle grid"></canvas></div>
+    <div class="infoline" id="infoline"></div>
+    <div class="dbar" id="deployBar">
+      <div class="tray" id="tray"></div>
+      <div class="btnrow">
+        <button class="btn" id="autoBtn">Auto</button>
+        <button class="btn" id="clearBtn">Clear</button>
+        <button class="btn" id="fcBtn" aria-pressed="true">Forecast</button>
+        <button class="btn go" id="engageBtn">Engage</button>
+      </div>
+    </div>
+    <div class="dbar" id="battleBar" hidden>
+      <div class="btnrow" style="align-items:center">
+        <div class="speed" id="speed"><button data-s="1" aria-pressed="true">1×</button><button data-s="2" aria-pressed="false">2×</button><button data-s="4" aria-pressed="false">4×</button></div>
+        <button class="btn" id="pauseBtn" aria-pressed="false">Pause</button>
+        <button class="btn" id="skipBtn" style="margin-left:auto">Skip ▸▸</button>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="hangar" aria-current="page"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 17V8l8-5 8 5v9"/><path d="M6 17v-5h8v5"/></svg>Hangar</button>
+    <button data-tab="codex"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="2.5" width="14" height="15" rx="1.5"/><path d="M6.5 7h7M6.5 10h7M6.5 13h4"/></svg>Codex</button>
+    <button data-tab="protocols"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="5" r="2.2"/><circle cx="15" cy="5" r="2.2"/><circle cx="10" cy="15" r="2.2"/><path d="M6.8 6.3 8.9 13M13.2 6.3 11.1 13M7.2 5h5.6"/></svg>Protocols</button>
+    <button data-tab="manual"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.5"/><path d="M8 7.8a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6 1V12"/><circle cx="10" cy="14.6" r=".5" fill="currentColor"/></svg>Manual</button>
+  </nav>
+</div>
+
+<div class="veil" id="sheetVeil" hidden><div class="sheet" id="sheet"></div></div>
+<div class="veil result" id="resultVeil" hidden><div class="rbox" id="rbox"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// ===================== VOLTFRONT ENGINE (pure, no DOM) =====================
+const COLS = 6, ROWS = 8, MAX_POWER = 12, MAX_SQUAD = 5, ROUND_CAP = 24;
+const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
+const inB = (x,y) => x>=0 && y>=0 && x<COLS && y<ROWS;
+const man = (ax,ay,bx,by) => Math.abs(ax-bx)+Math.abs(ay-by);
+const fwd = team => team==='P' ? -1 : 1;
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const DEPLOY_ROWS = { P:[5,6,7], E:[0,1,2] };
+
+// ---------- Protocols (squad synergies) ----------
+const PROTOCOLS = {
+  PLATE: { name:'Plate', blurb:'Armored hulls', tiers:[[2,'Plate mechs take 1 less damage from each hit (minimum 1).'],[3,'Every mech in the squad takes 1 less damage from each hit.']] },
+  ARC:   { name:'Arc',   blurb:'Energy conductors', tiers:[[2,'Arc mechs enter battle with +1 energy.'],[3,'Arc mechs also generate +1 extra energy every round.']] },
+  SURGE: { name:'Surge', blurb:'Fast assault frames', tiers:[[2,'Surge mechs gain +1 move and +2 initiative.'],[3,'Surge basic attacks deal +1 damage.']] },
+  VOLT:  { name:'Volt',  blurb:'High-output weapons', tiers:[[2,'Volt abilities deal +1 damage.'],[3,'Volt basic attacks deal +1 damage too.']] },
+};
+function protocolLevels(types){
+  const out = {};
+  for (const k in PROTOCOLS){
+    const c = types.filter(t => MECHS[t] && MECHS[t].tags.includes(k)).length;
+    let l = 0; PROTOCOLS[k].tiers.forEach((tr,i) => { if (c>=tr[0]) l = i+1; });
+    out[k] = { count:c, level:l };
+  }
+  return out;
+}
+const lvl = (st,team,k) => st.proto[team][k].level;
+const has = (u,k) => MECHS[u.type].tags.includes(k);
+
+// ---------- Energy (isolated so the economy can be revised later) ----------
+const Energy = {
+  basePerRound: 1,
+  overloadRound: 5,   // from this round the grid overloads: +1 energy to every mech each round
+  bleedRound: 8,     // from this round reactors bleed: every mech loses 1 hull at round start
+  start(st,u){ let e = 0; if (lvl(st,u.team,'ARC')>=1 && has(u,'ARC')) e += 1; return Math.min(e, u.maxE); },
+  regen(st,u){ let e = this.basePerRound; if (st.round>=this.overloadRound) e += 1; if (lvl(st,u.team,'ARC')>=2 && has(u,'ARC')) e += 1; return e; },
+  gain(st,u,amt,ev,src){
+    if (!u.alive || !amt) return;
+    const b = u.energy; u.energy = clamp(u.energy+amt, 0, u.maxE);
+    if (u.energy !== b) ev.push({ t:'energy', id:u.id, v:u.energy, d:u.energy-b, src });
+  },
+  ready(u){ return u.energy >= u.maxE; },
+  spend(st,u,ev){ u.energy = 0; ev.push({ t:'energy', id:u.id, v:0, d:0, src:'spend' }); },
+  onDamaged(st,u,ev){ if (MECHS[u.type].coreFeed) this.gain(st,u,1,ev,'core'); },
+  roundStart(st,ev){
+    for (const u of alive(st)) this.gain(st,u,this.regen(st,u),ev,'regen');
+    for (const u of alive(st)) if (MECHS[u.type].relayAura)
+      for (const a of adjUnits(st,u.x,u.y)) if (a.team===u.team) this.gain(st,a,1,ev,'relay');
+  },
+};
+
+// ---------- helpers ----------
+const alive = st => st.units.filter(u => u.alive);
+const unitAt = (st,x,y) => st.units.find(u => u.alive && u.x===x && u.y===y) || null;
+const enemiesOf = (st,u) => st.units.filter(o => o.alive && o.team!==u.team);
+const alliesOf = (st,u) => st.units.filter(o => o.alive && o.team===u.team && o!==u);
+function adjUnits(st,x,y){ const r=[]; for (const [dx,dy] of DIRS){ const o=unitAt(st,x+dx,y+dy); if (o) r.push(o);} return r; }
+function firstInLine(st,x,y,dx,dy,range){
+  for (let i=1;i<=range;i++){ const nx=x+dx*i, ny=y+dy*i; if (!inB(nx,ny)) return null; const o=unitAt(st,nx,ny); if (o) return o; }
+  return null;
+}
+function lineTiles(st,x,y,dx,dy,range,pierce){
+  const t=[]; for (let i=1;i<=range;i++){ const nx=x+dx*i, ny=y+dy*i; if (!inB(nx,ny)) break; t.push([nx,ny]); if (!pierce && unitAt(st,nx,ny)) break; } return t;
+}
+const moveOf = (st,u) => u.move + (lvl(st,u.team,'SURGE')>=1 && has(u,'SURGE') ? 1 : 0);
+const initOf = (st,u) => u.speed + (lvl(st,u.team,'SURGE')>=1 && has(u,'SURGE') ? 2 : 0);
+const basicDmg = (st,u) => MECHS[u.type].basic.dmg
+  + (lvl(st,u.team,'SURGE')>=2 && has(u,'SURGE') ? 1 : 0)
+  + (lvl(st,u.team,'VOLT')>=2 && has(u,'VOLT') ? 1 : 0);
+const abBonus = (st,u) => (lvl(st,u.team,'VOLT')>=1 && has(u,'VOLT') ? 1 : 0);
+const plateReduces = (st,t) => { const l = lvl(st,t.team,'PLATE'); return l>=2 || (l>=1 && has(t,'PLATE')); };
+
+// ---------- Mech roster ----------
+// pattern: melee | ranged(range) | artillery(2..range) | line(range, forwardOnly?)
+// ai: front | skirm | ranged | support | guard | lane | artillery
+// rank: preferred deploy depth (0 front, 1 middle, 2 back)
+const MECHS = {
+  bastion: { name:'Bastion', role:'Vanguard', tags:['PLATE'], power:3, hp:12, move:1, speed:2, rank:0, ai:'front', threat:0,
+    basic:{ pattern:'melee', dmg:2, fx:'slash', text:'Melee · 2 dmg' },
+    ability:{ name:'Bulwark', cost:3, text:'Gains 4 shield and taunts. Enemies within 2 tiles must attack Bastion next round if they can reach it.',
+      plan(st,u){ return enemiesOf(st,u).some(e=>man(u.x,u.y,e.x,e.y)<=3) ? { kind:'bulwark', tiles:[[u.x,u.y]], shield:4, help:true } : null; } },
+    strength:'Highest hull in the roster; pulls fire off fragile mechs.', weakness:'Moves 1 tile and hits softly.',
+    pairs:[['mender','Repairs keep the wall standing'],['howitzer','Taunted enemies cluster around it for shelling']] },
+
+  warden: { name:'Warden', role:'Shield projector', tags:['PLATE','ARC'], power:2, hp:9, move:1, speed:3, rank:0, ai:'guard', threat:2,
+    basic:{ pattern:'melee', dmg:2, fx:'slash', text:'Melee · 2 dmg' },
+    ability:{ name:'Aegis Field', cost:3, text:'Warden and every adjacent ally gain 3 shield until the end of next round. Shields do not stack.',
+      plan(st,u){ return enemiesOf(st,u).some(e=>man(u.x,u.y,e.x,e.y)<=4) ? { kind:'aegis', tiles:[[u.x,u.y],...DIRS.map(([dx,dy])=>[u.x+dx,u.y+dy]).filter(([x,y])=>inB(x,y))], shield:3, help:true } : null; } },
+    strength:'Cheap, fast-charging shields for a whole cluster.', weakness:'Barely scratches enemies on its own.',
+    pairs:[['titan','Shielded Titan survives long enough to Slam'],['relay','Relay recharges Aegis every round']] },
+
+  lancer: { name:'Lancer', role:'Breacher', tags:['SURGE','PLATE'], power:3, hp:10, move:2, speed:5, rank:0, ai:'front', threat:3,
+    basic:{ pattern:'melee', dmg:3, fx:'slash', text:'Melee · 3 dmg' },
+    ability:{ name:'Ram', cost:3, text:'Charges up to 5 tiles in a straight line, hits the first enemy for 4 and pushes it back 1. Blocked pushes deal 1 to both mechs.',
+      maneuver(st,u){
+        let best=null;
+        for (const [dx,dy] of DIRS){
+          let x=u.x, y=u.y; const path=[[x,y]];
+          for (let s=0;s<6;s++){
+            const nx=x+dx, ny=y+dy; if (!inB(nx,ny)) break;
+            const o=unitAt(st,nx,ny);
+            if (o){ if (o.team!==u.team){ const sc=100-o.hp*3+(MECHS[o.type].threat||0)*2+(dy===fwd(u.team)?4:0)+(s>0?2:0); if(!best||sc>best.sc) best={sc,path:path.slice(),o,dir:[dx,dy]}; } break; }
+            if (s===5) break;
+            x=nx; y=ny; path.push([x,y]);
+          }
+        }
+        if (!best) return null;
+        return { path:best.path, action:{ kind:'ram', tiles:[[best.o.x,best.o.y]], dir:best.dir, dmg:4+abBonus(st,u) } };
+      } },
+    strength:'Breaks formations and shoves enemies onto telegraphed tiles.', weakness:'Charges alone into the enemy line.',
+    pairs:[['hook','Hook drags targets into Ram lanes'],['howitzer','Pushes enemies into shell craters']] },
+
+  spark: { name:'Spark', role:'Assassin', tags:['SURGE','ARC'], power:2, hp:6, move:3, speed:7, rank:1, ai:'skirm', threat:2,
+    basic:{ pattern:'melee', dmg:3, fx:'slash', text:'Melee · 3 dmg' },
+    ability:{ name:'Blink Strike', cost:2, text:'Teleports behind the weakest enemy and strikes it for 4.',
+      maneuver(st,u){
+        const es=enemiesOf(st,u).sort((a,b)=>(a.hp+a.shield)-(b.hp+b.shield)||(MECHS[b.type].threat-MECHS[a.type].threat));
+        for (const e of es){
+          let best=null;
+          for (const [dx,dy] of DIRS){ const x=e.x+dx,y=e.y+dy; if(!inB(x,y)||unitAt(st,x,y)) continue;
+            const sc=(dy===fwd(u.team)?3:0) - adjUnits(st,x,y).filter(o=>o.team!==u.team).length;
+            if(!best||sc>best.sc) best={sc,x,y}; }
+          if (best) return { blink:true, path:[[u.x,u.y],[best.x,best.y]], action:{ kind:'hit', tiles:[[e.x,e.y]], dmg:4+abBonus(st,u), fx:'slash' } };
+        }
+        return null;
+      } },
+    strength:'Fastest mech; deletes weakened backliners.', weakness:'6 hull. Ends up stranded behind enemy lines.',
+    pairs:[['relay','Blinks every round when fed energy'],['leech','Leech drains targets so they cannot answer']] },
+
+  howitzer: { name:'Howitzer', role:'Artillery', tags:['VOLT'], power:3, hp:6, move:1, speed:1, rank:2, ai:'artillery', threat:6,
+    basic:{ pattern:'artillery', range:4, dmg:2, fx:'shell', text:'Artillery 2–4 tiles · 2 dmg' },
+    ability:{ name:'Barrage', cost:4, text:'Shells a tile 2–4 away: 3 damage to the center and 1 to each neighboring tile. Hits allies too.',
+      plan(st,u){
+        let best=null; const d=3+abBonus(st,u);
+        for (let x=0;x<COLS;x++) for (let y=0;y<ROWS;y++){
+          const r=man(u.x,u.y,x,y); if (r<2||r>4) continue;
+          const val=(o,dm)=>!o?0:(o.team!==u.team?dm+(dm>=o.hp+o.shield?2:0):-dm*2.5);
+          let sc=val(unitAt(st,x,y),d);
+          for (const [dx,dy] of DIRS) sc+=val(unitAt(st,x+dx,y+dy),1);
+          if (sc>=4 && (!best||sc>best.sc)) best={sc,x,y};
+        }
+        if (!best) return null;
+        const tiles=[[best.x,best.y],...DIRS.map(([dx,dy])=>[best.x+dx,best.y+dy]).filter(([x,y])=>inB(x,y))];
+        return { kind:'blast', tiles, dmg:d, splash:1 };
+      } },
+    strength:'Hits over the front line; huge area damage.', weakness:'Cannot fire at adjacent tiles. Fragile, slowest initiative.',
+    pairs:[['bastion','Shells the crowd around a taunting Bastion'],['hook','Pulled targets land in the blast zone']] },
+
+  rail: { name:'Rail', role:'Lane sniper', tags:['VOLT'], power:3, hp:6, move:1, speed:2, rank:2, ai:'lane', threat:6,
+    basic:{ pattern:'line', range:ROWS, forwardOnly:true, dmg:4, fx:'beam', text:'Forward line · 4 dmg to the first mech' },
+    ability:{ name:'Piercing Rail', cost:3, text:'Fires straight ahead through every mech in its column for 4 damage, allies included.',
+      plan(st,u){
+        const d=fwd(u.team); let en=0, al=0;
+        for (const [x,y] of lineTiles(st,u.x,u.y,0,d,ROWS,true)){ const o=unitAt(st,x,y); if(o){ if(o.team===u.team) al++; else en++; } }
+        if ((en>=1&&al===0)||(en>=2&&al<=1)) return { kind:'line', dir:[0,d], range:ROWS, pierce:true, dmg:4+abBonus(st,u), tiles:lineTiles(st,u.x,u.y,0,d,ROWS,true) };
+        return null;
+      } },
+    strength:'Unlimited range and high damage down its column.', weakness:'Only shoots straight ahead, moves 1, and allies in its column block the shot.',
+    pairs:[['lancer','Ram pushes enemies into the firing lane'],['warden','Covers a sniper that cannot run']] },
+
+  relay: { name:'Relay', role:'Energy battery', tags:['ARC'], power:2, hp:8, move:1, speed:4, rank:1, ai:'support', threat:4, relayAura:true,
+    basic:{ pattern:'ranged', range:2, dmg:2, fx:'bolt', text:'Ranged 2 · 2 dmg' },
+    passive:'Adjacent allies gain +1 energy at the start of every round.',
+    ability:{ name:'Overcharge', cost:3, text:'Pours 2 energy into every adjacent ally.',
+      plan(st,u){ const a=adjUnits(st,u.x,u.y).filter(o=>o.team===u.team && o.energy<o.maxE); return a.length ? { kind:'overcharge', tiles:a.map(o=>[o.x,o.y]), amt:2, help:true } : null; } },
+    strength:'Doubles the ability rate of whoever stands next to it.', weakness:'Almost no damage; only helps mechs touching it.',
+    pairs:[['titan','Titan Slams far more often'],['howitzer','Barrage every other round']] },
+
+  leech: { name:'Leech', role:'Disruptor', tags:['ARC','VOLT'], power:2, hp:7, move:2, speed:5, rank:1, ai:'ranged', threat:3,
+    basic:{ pattern:'ranged', range:2, dmg:2, drain:1, fx:'bolt', text:'Ranged 2 · 2 dmg, steals 1 energy' },
+    ability:{ name:'EMP Burst', cost:3, text:'Every enemy within 2 tiles takes 1 damage and loses 2 energy.',
+      plan(st,u){
+        const n=enemiesOf(st,u).filter(e=>man(u.x,u.y,e.x,e.y)<=2).length; if (!n) return null;
+        const tiles=[]; for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++){const r=man(u.x,u.y,x,y); if(r>=1&&r<=2) tiles.push([x,y]);}
+        return { kind:'emp', tiles, radius:2, dmg:1+abBonus(st,u), drain:2 };
+      } },
+    strength:'Delays enemy abilities and feeds itself.', weakness:'Low damage; must get close to EMP.',
+    pairs:[['spark','Drained targets cannot strike back'],['tesla','Volt pair: both gain ability damage']] },
+
+  hook: { name:'Hook', role:'Puller', tags:['SURGE'], power:2, hp:9, move:1, speed:4, rank:1, ai:'ranged', threat:3,
+    basic:{ pattern:'line', range:3, dmg:3, fx:'beam', text:'Line 3 in any direction · 3 dmg' },
+    ability:{ name:'Grapple', cost:3, text:'Hooks the first mech up to 5 tiles away in a line, deals 2 and drags it next to Hook.',
+      plan(st,u){
+        let best=null;
+        for (const [dx,dy] of DIRS){ const o=firstInLine(st,u.x,u.y,dx,dy,5);
+          if (o && o.team!==u.team && man(u.x,u.y,o.x,o.y)>=2){ const sc=(MECHS[o.type].threat||0)*3-o.hp; if(!best||sc>best.sc) best={sc,dx,dy}; } }
+        if (!best) return null;
+        return { kind:'line', dir:[best.dx,best.dy], range:5, dmg:2, pull:true, tiles:lineTiles(st,u.x,u.y,best.dx,best.dy,5,false) };
+      } },
+    strength:'Rips backliners out of position.', weakness:'Line-only targeting; middling damage.',
+    pairs:[['titan','Drags victims into Slam range'],['lancer','Sets up Ram lanes']] },
+
+  mender: { name:'Mender', role:'Repair unit', tags:['ARC'], power:2, hp:7, move:1, speed:3, rank:1, ai:'support', threat:5,
+    basic:{ pattern:'ranged', range:2, dmg:1, fx:'bolt', text:'Ranged 2 · 1 dmg' },
+    ability:{ name:'Field Repair', cost:2, text:'Restores 3 hull to the most damaged ally within 2 tiles (or itself).',
+      plan(st,u){
+        let best=null; for (const a of [u,...alliesOf(st,u)]){ const miss=a.maxHp-a.hp; if (miss>=3 && man(u.x,u.y,a.x,a.y)<=2 && (!best||miss>best.miss)) best={a,miss}; }
+        return best ? { kind:'heal', tiles:[[best.a.x,best.a.y]], amt:3, help:true } : null;
+      } },
+    strength:'Turns tanks into walls that do not fall.', weakness:'Weak attack; useless if nobody is taking damage.',
+    pairs:[['bastion','Repairs the taunting wall'],['titan','Keeps the Reactor Core alive']] },
+
+  tesla: { name:'Tesla', role:'Chain caster', tags:['VOLT'], power:3, hp:8, move:1, speed:4, rank:1, ai:'ranged', threat:5,
+    basic:{ pattern:'ranged', range:2, dmg:3, chain:1, maxChain:2, fx:'zap', text:'Ranged 2 · 3 dmg, arcs 1 to up to 2 touching enemies' },
+    ability:{ name:'Chain Storm', cost:3, text:'3 damage to a target within 2, arcing 2 damage through up to 4 connected enemies.',
+      plan(st,u){
+        let best=null;
+        for (const e of enemiesOf(st,u)){ if (man(u.x,u.y,e.x,e.y)>2) continue; const n=clusterOf(st,e,4).length; const sc=n*10-e.hp; if(!best||sc>best.sc) best={sc,e}; }
+        return best ? { kind:'chain', tiles:[[best.e.x,best.e.y]], dmg:3+abBonus(st,u), chain:2, maxChain:4 } : null;
+      } },
+    strength:'Shreds tightly packed formations.', weakness:'Short range, and spread-out enemies blunt it.',
+    pairs:[['hook','Pulls enemies together for the arc'],['bastion','Taunt makes enemies bunch up']] },
+
+  titan: { name:'Titan', role:'Reactor brawler', tags:['PLATE','SURGE'], power:4, hp:12, move:1, speed:2, rank:0, ai:'front', threat:2, coreFeed:true,
+    basic:{ pattern:'melee', dmg:3, fx:'slash', text:'Melee · 3 dmg' },
+    passive:'Reactor Core: gains 1 energy every time it takes damage.',
+    ability:{ name:'Overload Slam', cost:3, text:'Smashes an adjacent enemy for 5, then sends a 2-damage shockwave into every other adjacent mech, allies included.',
+      plan(st,u){
+        const adj=adjUnits(st,u.x,u.y).filter(o=>o.team!==u.team); if (!adj.length) return null;
+        adj.sort((a,b)=>a.hp-b.hp); const t=adj[0];
+        return { kind:'slam', tiles:[[t.x,t.y],...DIRS.map(([dx,dy])=>[u.x+dx,u.y+dy]).filter(([x,y])=>inB(x,y)&&!(x===t.x&&y===t.y))], dmg:5, splash:2 };
+      } },
+    strength:'Hits hardest; charges faster the more it is hit.', weakness:'4 power, slow, and its shockwave hurts neighbors.',
+    pairs:[['relay','Slam every two rounds'],['hook','Victims delivered to its fists']] },
+};
+const MECH_ORDER = ['bastion','warden','titan','lancer','spark','hook','relay','mender','leech','tesla','howitzer','rail'];
+
+function clusterOf(st,start,maxExtra){
+  const seen=new Set([start.id]); const out=[start]; const q=[start];
+  while(q.length && out.length<=maxExtra){ const c=q.shift();
+    for (const o of adjUnits(st,c.x,c.y)) if (o.team===start.team && !seen.has(o.id)){ seen.add(o.id); out.push(o); q.push(o); if (out.length>maxExtra) break; } }
+  return out;
+}
+
+// ---------- Battle setup ----------
+function makeUnit(type,team,x,y,i){
+  const d=MECHS[type];
+  return { id:team+i, type, team, x, y, hp:d.hp, maxHp:d.hp, shield:0, shieldUntil:0, energy:0, maxE:d.ability.cost,
+    move:d.move, speed:d.speed, alive:true, plan:null };
+}
+function createBattle(pList,eList){
+  const st={ round:0, units:[], taunts:[], over:null, proto:{ P:protocolLevels(pList.map(p=>p.type)), E:protocolLevels(eList.map(p=>p.type)) } };
+  pList.forEach((p,i)=>st.units.push(makeUnit(p.type,'P',p.x,p.y,i)));
+  eList.forEach((p,i)=>st.units.push(makeUnit(p.type,'E',p.x,p.y,i)));
+  for (const u of st.units) u.energy=Energy.start(st,u);
+  return st;
+}
+
+// ---------- AI: movement & targeting ----------
+function reachable(st,u,steps,lane){
+  const k=(x,y)=>x+','+y; const m=new Map(); m.set(k(u.x,u.y),{x:u.x,y:u.y,d:0,prev:null});
+  if (lane){ for (const dx of [-1,1]){ const x=u.x+dx; if (inB(x,u.y)&&!unitAt(st,x,u.y)) m.set(k(x,u.y),{x,y:u.y,d:1,prev:k(u.x,u.y)}); } return m; }
+  const q=[[u.x,u.y]];
+  while(q.length){ const [cx,cy]=q.shift(); const c=m.get(k(cx,cy)); if (c.d>=steps) continue;
+    for (const [dx,dy] of DIRS){ const nx=cx+dx, ny=cy+dy; if(!inB(nx,ny)||m.has(k(nx,ny))||unitAt(st,nx,ny)) continue;
+      m.set(k(nx,ny),{x:nx,y:ny,d:c.d+1,prev:k(cx,cy)}); q.push([nx,ny]); } }
+  return m;
+}
+function pathTo(m,x,y){ const p=[]; let c=m.get(x+','+y); while(c){ p.unshift([c.x,c.y]); c=c.prev?m.get(c.prev):null; } return p; }
+
+function basicOptions(st,u){
+  const b=MECHS[u.type].basic, out=[];
+  if (b.pattern==='line'){
+    const dirs=b.forwardOnly?[[0,fwd(u.team)]]:DIRS;
+    for (const [dx,dy] of dirs){ const o=firstInLine(st,u.x,u.y,dx,dy,b.range); if (o && o.team!==u.team) out.push({unit:o,dir:[dx,dy]}); }
+  } else {
+    const min=b.pattern==='artillery'?2:1, max=b.pattern==='melee'?1:b.range;
+    for (const e of enemiesOf(st,u)){ const d=man(u.x,u.y,e.x,e.y); if (d>=min&&d<=max) out.push({unit:e}); }
+  }
+  return out;
+}
+function tauntFor(st,u){
+  for (const t of st.taunts){ const b=st.units.find(o=>o.id===t.id); if (b && b.alive && b.team!==u.team && man(u.x,u.y,b.x,b.y)<=2) return b; }
+  return null;
+}
+function targetScore(st,u,t,taunter){
+  let s=60-t.hp*3-t.shield*2+(MECHS[t.type].threat||0)*2;
+  if (basicDmg(st,u)>=t.hp+t.shield) s+=40;
+  if (MECHS[u.type].ai==='skirm') s-=t.hp*4;
+  if (taunter && t===taunter) s+=500;
+  return s;
+}
+function chooseDest(st,u){
+  const def=MECHS[u.type], style=def.ai;
+  const reach=reachable(st,u,moveOf(st,u),def.lane);
+  const taunter=tauntFor(st,u);
+  const ox=u.x, oy=u.y; let best=null;
+  for (const n of reach.values()){
+    u.x=n.x; u.y=n.y;
+    const opts=basicOptions(st,u);
+    let s;
+    if (opts.length) s=1000+Math.max(...opts.map(o=>targetScore(st,u,o.unit,taunter)));
+    else { const es=enemiesOf(st,u); s=es.length?-Math.min(...es.map(e=>def.lane?Math.abs(e.x-n.x)*3+1:man(n.x,n.y,e.x,e.y)))*10:0; }
+    const adj=adjUnits(st,n.x,n.y), adjE=adj.filter(o=>o.team!==u.team).length, adjA=adj.filter(o=>o.team===u.team).length;
+    if (style==='ranged'||style==='support'||style==='artillery'||style==='lane') s-=adjE*60;
+    if (style==='support') s+=adjA*22;
+    if (style==='guard') s+=adjA*25;
+    if (style==='lane' && !opts.length){ for (let yy=n.y+fwd(u.team); yy>=0&&yy<ROWS; yy+=fwd(u.team)){ const o=unitAt(st,n.x,yy); if (o && o.team===u.team && o!==u) s-=15; } }
+    if (u.type==='bastion') s+=adjE*6;
+    if (style==='artillery' && !opts.length) s+=0;
+    s-=n.d*0.5;
+    if (!best || s>best.s+1e-9) best={s,x:n.x,y:n.y};
+  }
+  u.x=ox; u.y=oy;
+  return pathTo(reach,best.x,best.y);
+}
+function basicAction(st,u){
+  const b=MECHS[u.type].basic; const opts=basicOptions(st,u); if (!opts.length) return null;
+  const taunter=tauntFor(st,u);
+  let best=opts[0], bs=-1e9; for (const o of opts){ const s=targetScore(st,u,o.unit,taunter); if (s>bs){bs=s;best=o;} }
+  const dmg=basicDmg(st,u), t=best.unit;
+  if (b.pattern==='line') return { kind:'line', dir:best.dir, range:b.range, dmg, tiles:lineTiles(st,u.x,u.y,best.dir[0],best.dir[1],b.range,false) };
+  if (b.chain) return { kind:'chain', tiles:[[t.x,t.y]], dmg, chain:b.chain, maxChain:b.maxChain };
+  return { kind:'hit', tiles:[[t.x,t.y]], dmg, drain:b.drain||0, fx:b.fx };
+}
+
+function doMove(st,u,path,ev,blink){
+  if (!path || path.length<2) return;
+  const last=path[path.length-1];
+  ev.push(blink?{ t:'blink', id:u.id, from:[u.x,u.y], to:last }:{ t:'move', id:u.id, path });
+  u.x=last[0]; u.y=last[1];
+}
+function planUnit(st,u,ev){
+  const def=MECHS[u.type], ab=def.ability, ready=Energy.ready(u);
+  if (ready && ab.maneuver){ const r=ab.maneuver(st,u); if (r){ doMove(st,u,r.path,ev,r.blink); u.plan={...r.action, ability:true}; ev.push({t:'plan',id:u.id,from:[u.x,u.y],action:u.plan}); return; } }
+  doMove(st,u,chooseDest(st,u),ev,false);
+  let a=null; if (ready && ab.plan){ a=ab.plan(st,u); if (a) a.ability=true; }
+  if (!a) a=basicAction(st,u);
+  u.plan=a; if (a) ev.push({t:'plan',id:u.id,from:[u.x,u.y],action:a});
+}
+
+// ---------- Resolution ----------
+function damage(st,src,t,amt,ev,pure){
+  if (!t.alive || amt<=0) return;
+  let d=amt; if (!pure && plateReduces(st,t)) d=Math.max(1,d-1);
+  if (pure){ t.hp-=d; ev.push({ t:'dmg', id:t.id, amt:d, absorbed:0, hp:Math.max(0,t.hp), shield:t.shield, bleed:true }); if (t.hp<=0){ t.hp=0; t.alive=false; t.plan=null; ev.push({t:'death',id:t.id}); } return; }
+  const ab=Math.min(t.shield,d); t.shield-=ab; d-=ab; t.hp-=d;
+  ev.push({ t:'dmg', id:t.id, amt:d, absorbed:ab, hp:Math.max(0,t.hp), shield:t.shield, friendly:!!(src&&src.team===t.team) });
+  if (t.hp<=0){ t.hp=0; t.alive=false; t.plan=null; ev.push({t:'death',id:t.id}); return; }
+  Energy.onDamaged(st,t,ev);
+}
+function push(st,o,dx,dy,ev){
+  if (!o.alive) return;
+  const nx=o.x+dx, ny=o.y+dy;
+  if (!inB(nx,ny)){ ev.push({t:'bump',id:o.id,dir:[dx,dy]}); damage(st,null,o,1,ev); return; }
+  const b=unitAt(st,nx,ny);
+  if (b){ ev.push({t:'bump',id:o.id,dir:[dx,dy],other:b.id}); damage(st,null,o,1,ev); damage(st,null,b,1,ev); return; }
+  ev.push({t:'push',id:o.id,from:[o.x,o.y],to:[nx,ny]}); o.x=nx; o.y=ny;
+}
+function addShield(st,u,amt,ev){ u.shield=Math.max(u.shield,amt); u.shieldUntil=st.round+1; ev.push({t:'shield',id:u.id,v:u.shield}); }
+
+const RESOLVE = {
+  hit(st,u,a,ev){ const [x,y]=a.tiles[0]; ev.push({t:'act',id:u.id,kind:'hit',fx:a.fx||'bolt',from:[u.x,u.y],to:[x,y],ability:!!a.ability});
+    const t=unitAt(st,x,y); if (t){ damage(st,u,t,a.dmg,ev); if (a.drain && t.alive && t.team!==u.team && t.energy>0){ Energy.gain(st,t,-a.drain,ev,'drain'); Energy.gain(st,u,a.drain,ev,'drain'); } } },
+  line(st,u,a,ev){
+    const [dx,dy]=a.dir; let x=u.x,y=u.y,end=[x,y]; const hits=[];
+    for (let i=0;i<a.range;i++){ x+=dx; y+=dy; if(!inB(x,y)) break; end=[x,y]; const o=unitAt(st,x,y); if (o){ hits.push(o); if(!a.pierce) break; } }
+    ev.push({t:'act',id:u.id,kind:'line',fx:a.pull?'hook':'beam',from:[u.x,u.y],to:end,ability:!!a.ability});
+    for (const o of hits) damage(st,u,o,a.dmg,ev);
+    if (a.pull && hits[0] && hits[0].alive){ const o=hits[0]; const from=[o.x,o.y]; let tx=o.x,ty=o.y;
+      while (man(tx,ty,u.x,u.y)>1){ const nx=tx-dx, ny=ty-dy; if (unitAt(st,nx,ny)) break; tx=nx; ty=ny; }
+      if (tx!==o.x||ty!==o.y){ o.x=tx; o.y=ty; ev.push({t:'push',id:o.id,from,to:[tx,ty],pull:true}); } } },
+  blast(st,u,a,ev){ const [cx,cy]=a.tiles[0]; ev.push({t:'act',id:u.id,kind:'blast',fx:'shell',from:[u.x,u.y],to:[cx,cy],big:true,ability:!!a.ability});
+    const c=unitAt(st,cx,cy); const ring=DIRS.map(([dx,dy])=>unitAt(st,cx+dx,cy+dy)).filter(Boolean);
+    if (c) damage(st,u,c,a.dmg,ev); for (const o of ring) damage(st,u,o,a.splash,ev); },
+  chain(st,u,a,ev){ const [x,y]=a.tiles[0]; const t=unitAt(st,x,y);
+    const list=t?clusterOf(st,t,a.maxChain):[];
+    ev.push({t:'act',id:u.id,kind:'chain',fx:'zap',from:[u.x,u.y],to:[x,y],chain:list.map(o=>[o.x,o.y]),ability:!!a.ability});
+    list.forEach((o,i)=>damage(st,u,o,i===0?a.dmg:a.chain,ev)); },
+  bulwark(st,u,a,ev){ ev.push({t:'act',id:u.id,kind:'bulwark',fx:'shield',from:[u.x,u.y],to:[u.x,u.y],ability:true});
+    addShield(st,u,a.shield,ev); st.taunts=st.taunts.filter(t=>t.id!==u.id); st.taunts.push({id:u.id,until:st.round+1}); },
+  aegis(st,u,a,ev){ ev.push({t:'act',id:u.id,kind:'aegis',fx:'shield',from:[u.x,u.y],to:[u.x,u.y],ability:true});
+    for (const o of [u,...adjUnits(st,u.x,u.y).filter(o=>o.team===u.team)]) addShield(st,o,a.shield,ev); },
+  overcharge(st,u,a,ev){ const allies=adjUnits(st,u.x,u.y).filter(o=>o.team===u.team);
+    ev.push({t:'act',id:u.id,kind:'overcharge',fx:'link',from:[u.x,u.y],to:[u.x,u.y],links:allies.map(o=>[o.x,o.y]),ability:true});
+    for (const o of allies) Energy.gain(st,o,a.amt,ev,'overcharge'); },
+  emp(st,u,a,ev){ ev.push({t:'act',id:u.id,kind:'emp',fx:'ring',from:[u.x,u.y],to:[u.x,u.y],radius:a.radius,ability:true});
+    for (const e of enemiesOf(st,u).filter(e=>man(u.x,u.y,e.x,e.y)<=a.radius)){ damage(st,u,e,a.dmg,ev); if (e.alive) Energy.gain(st,e,-a.drain,ev,'drain'); } },
+  heal(st,u,a,ev){ const [x,y]=a.tiles[0]; ev.push({t:'act',id:u.id,kind:'heal',fx:'heal',from:[u.x,u.y],to:[x,y],ability:true});
+    const t=unitAt(st,x,y); if (t && t.team===u.team){ const h=Math.min(a.amt,t.maxHp-t.hp); t.hp+=h; ev.push({t:'heal',id:t.id,amt:h,hp:t.hp}); } },
+  ram(st,u,a,ev){ const [x,y]=a.tiles[0]; ev.push({t:'act',id:u.id,kind:'ram',fx:'slash',from:[u.x,u.y],to:[x,y],ability:true});
+    const t=unitAt(st,x,y); if (t){ damage(st,u,t,a.dmg,ev); push(st,t,a.dir[0],a.dir[1],ev); } },
+  slam(st,u,a,ev){ const [x,y]=a.tiles[0]; ev.push({t:'act',id:u.id,kind:'slam',fx:'quake',from:[u.x,u.y],to:[x,y],ability:true});
+    const t=unitAt(st,x,y); const others=adjUnits(st,u.x,u.y).filter(o=>o!==t);
+    if (t) damage(st,u,t,a.dmg,ev); for (const o of others) damage(st,u,o,a.splash,ev); },
+};
+
+function initiativeOrder(st){
+  const first=st.round%2===1?'P':'E';
+  return alive(st).sort((a,b)=>initOf(st,b)-initOf(st,a) || (a.team===b.team?0:(a.team===first?-1:1)) || a.x-b.x || (a.id<b.id?-1:1));
+}
+function winnerOf(st){
+  const p=st.units.some(u=>u.alive&&u.team==='P'), e=st.units.some(u=>u.alive&&u.team==='E');
+  if (p&&e) return null; if (!p&&!e) return 'draw'; return p?'P':'E';
+}
+function hpSum(st,team){ return st.units.filter(u=>u.alive&&u.team===team).reduce((s,u)=>s+u.hp,0); }
+function hpFrac(st,team){ const us=st.units.filter(u=>u.team===team); return us.reduce((s,u)=>s+u.hp,0)/us.reduce((s,u)=>s+u.maxHp,0); }
+
+// Runs one full round. opts.planOnly stops after the maneuver phase (used for the deploy forecast).
+function runRound(st,opts={}){
+  const ev=[]; st.round++;
+  ev.push({t:'round',n:st.round});
+  for (const u of alive(st)) if (u.shield && st.round>u.shieldUntil){ u.shield=0; ev.push({t:'shield',id:u.id,v:0}); }
+  st.taunts=st.taunts.filter(t=>t.until>=st.round);
+  if (st.round===Energy.overloadRound) ev.push({t:'alert',kind:'overload'});
+  if (st.round===Energy.bleedRound) ev.push({t:'alert',kind:'bleed'});
+  if (st.round>=Energy.bleedRound){ const pre={P:hpSum(st,'P'),E:hpSum(st,'E')}; for (const u of alive(st)){ ev.push({t:'bleed',id:u.id}); damage(st,null,u,1+Math.floor((st.round-Energy.bleedRound)/2),ev,true); } let w0=winnerOf(st); if (w0==='draw' && pre.P!==pre.E) w0=pre.P>pre.E?'P':'E'; if (w0){ st.over=w0; ev.push({t:'over',winner:w0}); return ev; } }
+  Energy.roundStart(st,ev);
+  ev.push({t:'phase',name:'maneuver'});
+  const order=initiativeOrder(st);
+  for (const u of order) if (u.alive) planUnit(st,u,ev);
+  if (opts.planOnly) return ev;
+  ev.push({t:'phase',name:'strike'});
+  for (const u of order){ if (!u.alive || !u.plan) continue; const a=u.plan; u.plan=null; if (a.ability) Energy.spend(st,u,ev); RESOLVE[a.kind](st,u,a,ev); if (winnerOf(st)) break; }
+  for (const u of st.units) u.plan=null;
+  let w=winnerOf(st);
+  if (!w && st.round>=ROUND_CAP){ const p=hpFrac(st,'P'), e=hpFrac(st,'E'); w=Math.abs(p-e)<0.02?'draw':(p>e?'P':'E'); ev.push({t:'timeout'}); }
+  if (w){ st.over=w; ev.push({t:'over',winner:w}); }
+  return ev;
+}
+
+// ---------- Squads & formations ----------
+const squadPower = types => types.reduce((s,t)=>s+MECHS[t].power,0);
+function randomSquad(rng=Math.random){
+  const pool=MECH_ORDER.slice(); for (let i=pool.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  const out=[]; for (const t of pool){ if (out.length<MAX_SQUAD && squadPower(out)+MECHS[t].power<=MAX_POWER) out.push(t); }
+  return out;
+}
+function autoFormation(types,team,rng=Math.random){
+  const rows=DEPLOY_ROWS[team]; const rowFor=r=>team==='P'?rows[r]:rows[2-r];
+  const cols=[2,3,1,4,0,5]; const used=new Set(); const out=[];
+  const sorted=types.slice().sort((a,b)=>MECHS[a].rank-MECHS[b].rank);
+  for (const t of sorted){
+    const pref=MECHS[t].rank; const tries=[pref,pref===0?1:pref-1,pref===2?1:Math.min(2,pref+1),0,1,2];
+    let placed=false;
+    for (const r of tries){ const y=rowFor(r); const order=cols.slice(); if (rng!==null && rng()<0.5) order.reverse();
+      for (const x of order){ if (!used.has(x+','+y)){ used.add(x+','+y); out.push({type:t,x,y}); placed=true; break; } } if (placed) break; }
+  }
+  return out;
+}
+
+
+</script>
+<script>
+// ===================== VOLTFRONT UI =====================
+const $ = s => document.querySelector(s);
+const TEAMC = {
+  P:{ hull:'#2b3c41', plate:'#93b0ab', dark:'#081013', glow:'#5ee6ff', soft:'94,230,255' },
+  E:{ hull:'#43302a', plate:'#bc9b8a', dark:'#140b08', glow:'#ff6b45', soft:'255,107,69' },
+};
+const PCOL = { PLATE:'#d6c08a', ARC:'#5ee6ff', SURGE:'#a9f06b', VOLT:'#ffd25e' };
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- persistence (per-viewer convenience only) ----------
+const Store = {
+  load(){ try { return JSON.parse(localStorage.getItem('voltfront.v1')) || {}; } catch(e){ return {}; } },
+  save(){ try { localStorage.setItem('voltfront.v1', JSON.stringify({ squad:G.squad, record:G.record })); } catch(e){} },
+};
+const saved = Store.load();
+const validSquad = s => Array.isArray(s) && s.every(t=>MECHS[t]) && new Set(s).size===s.length && s.length<=MAX_SQUAD && squadPower(s)<=MAX_POWER;
+const G = {
+  squad: validSquad(saved.squad) ? saved.squad : ['warden','relay','spark','mender','howitzer'],
+  record: saved.record && typeof saved.record.w==='number' ? saved.record : { w:0, l:0, d:0 },
+  tab:'hangar', mode:'deploy', enemy:null, place:{}, sel:null, drag:null, forecast:true, preview:null, battle:null, infoId:null,
+};
+
+// =====================================================================
+// MECH ART — procedural silhouettes, facing "up" for the player
+// =====================================================================
+function rr(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function drawMech(ctx,type,cx,cy,s,team,t=0,alpha=1){
+  const C=TEAMC[team];
+  ctx.save(); ctx.globalAlpha*=alpha; ctx.translate(cx,cy); if (team==='E') ctx.rotate(Math.PI); ctx.scale(s,s);
+  ctx.lineWidth=0.035; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.strokeStyle=C.dark;
+  const F=c=>{ ctx.fillStyle=c; ctx.fill(); ctx.stroke(); };
+  const pulse=0.65+0.35*Math.sin(t*3.2);
+  const G_=(draw,blur=10)=>{ ctx.save(); ctx.shadowColor=C.glow; ctx.shadowBlur=blur*(s/56)*pulse; ctx.fillStyle=C.glow; ctx.strokeStyle=C.glow; draw(); ctx.restore(); };
+  const circ=(x,y,r)=>{ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); };
+  const poly=(pts)=>{ ctx.beginPath(); pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); };
+  ctx.fillStyle='rgba(0,0,0,.38)'; ctx.beginPath(); ctx.ellipse(0,0.1,0.38,0.3,0,0,Math.PI*2); ctx.fill();
+  switch(type){
+    case 'bastion':
+      rr(ctx,-0.38,-0.2,0.13,0.5,0.04); F(C.dark); rr(ctx,0.25,-0.2,0.13,0.5,0.04); F(C.dark);
+      rr(ctx,-0.27,-0.16,0.54,0.44,0.07); F(C.hull);
+      rr(ctx,-0.17,0.0,0.34,0.18,0.03); F(C.plate);
+      ctx.beginPath(); ctx.moveTo(-0.42,-0.16); ctx.quadraticCurveTo(0,-0.46,0.42,-0.16); ctx.lineTo(0.38,-0.07); ctx.quadraticCurveTo(0,-0.34,-0.38,-0.07); ctx.closePath(); F(C.plate);
+      G_(()=>{ ctx.fillRect(-0.12,-0.05,0.24,0.045); });
+      break;
+    case 'warden':
+      for (const [x,y] of [[-0.24,-0.2],[0.24,-0.2],[-0.24,0.22],[0.24,0.22]]){ circ(x,y,0.08); F(C.dark); }
+      circ(0,0,0.26); F(C.hull); circ(0,0,0.16); F(C.plate);
+      G_(()=>{ ctx.save(); ctx.rotate(t*0.8); ctx.lineWidth=0.03; ctx.setLineDash([0.12,0.09]); circ(0,0,0.34); ctx.globalAlpha*=0.7; ctx.stroke(); ctx.restore(); circ(0,0,0.06); ctx.fill(); });
+      break;
+    case 'lancer':
+      rr(ctx,-0.26,0.06,0.12,0.26,0.04); F(C.dark); rr(ctx,0.14,0.06,0.12,0.26,0.04); F(C.dark);
+      poly([[-0.22,-0.04],[0,-0.2],[0.22,-0.04],[0.19,0.22],[-0.19,0.22]]); F(C.hull);
+      poly([[-0.06,-0.1],[0,-0.52],[0.06,-0.1]]); F(C.plate);
+      poly([[-0.12,0.04],[0.12,0.04],[0.08,0.14],[-0.08,0.14]]); F(C.plate);
+      G_(()=>{ circ(0,-0.05,0.045); ctx.fill(); });
+      break;
+    case 'spark':
+      G_(()=>{ ctx.lineWidth=0.045; ctx.beginPath(); ctx.moveTo(0,0.1); ctx.lineTo(0.08,0.2); ctx.lineTo(-0.06,0.28); ctx.lineTo(0.05,0.4); ctx.stroke(); },14);
+      poly([[0,-0.34],[0.24,0.18],[0,0.07],[-0.24,0.18]]); F(C.plate);
+      poly([[0,-0.2],[0.1,0.06],[0,0.02],[-0.1,0.06]]); F(C.hull);
+      G_(()=>{ circ(0,-0.08,0.04); ctx.fill(); });
+      break;
+    case 'howitzer':
+      rr(ctx,-0.36,-0.18,0.14,0.46,0.04); F(C.dark); rr(ctx,0.22,-0.18,0.14,0.46,0.04); F(C.dark);
+      rr(ctx,-0.23,-0.1,0.46,0.36,0.05); F(C.hull);
+      rr(ctx,-0.075,-0.5,0.15,0.44,0.03); F(C.hull);
+      rr(ctx,-0.1,-0.52,0.2,0.08,0.02); F(C.plate);
+      circ(0,0.05,0.14); F(C.plate);
+      G_(()=>{ ctx.fillRect(-0.04,-0.49,0.08,0.03); circ(0,0.05,0.04); ctx.fill(); });
+      break;
+    case 'rail':
+      ctx.lineWidth=0.06; ctx.strokeStyle=C.plate;
+      ctx.beginPath(); ctx.moveTo(0,0.04); ctx.lineTo(-0.3,0.32); ctx.moveTo(0,0.04); ctx.lineTo(0.3,0.32); ctx.moveTo(0,0.04); ctx.lineTo(0,0.4); ctx.stroke();
+      ctx.lineWidth=0.035; ctx.strokeStyle=C.dark;
+      rr(ctx,-0.045,-0.56,0.09,0.58,0.03); F(C.plate);
+      circ(0,0.04,0.14); F(C.hull);
+      G_(()=>{ ctx.fillRect(-0.012,-0.52,0.024,0.46); circ(0,0.04,0.05); ctx.fill(); },12);
+      break;
+    case 'relay':
+      rr(ctx,-0.26,-0.04,0.52,0.3,0.05); F(C.hull);
+      rr(ctx,-0.045,-0.34,0.09,0.32,0.02); F(C.plate);
+      G_(()=>{ circ(-0.17,0.11,0.05); ctx.fill(); circ(0.17,0.11,0.05); ctx.fill();
+        ctx.lineWidth=0.03; for (let i=0;i<2;i++){ const r=0.12+((t*0.6+i*0.5)%1)*0.22; ctx.globalAlpha=Math.max(0,1-(r-0.12)/0.22)*0.8; ctx.beginPath(); ctx.arc(0,-0.34,r,Math.PI*1.18,Math.PI*1.82); ctx.stroke(); } });
+      circ(0,-0.34,0.06); F(C.plate);
+      break;
+    case 'leech':
+      ctx.lineWidth=0.05; ctx.strokeStyle=C.hull;
+      for (const sx of [-1,1]) for (const [ky,fy] of [[-0.18,-0.34],[0,0.02],[0.16,0.32]]){ ctx.beginPath(); ctx.moveTo(0,ky*0.6); ctx.quadraticCurveTo(sx*0.3,ky-0.06,sx*0.36,fy); ctx.stroke(); }
+      ctx.lineWidth=0.035; ctx.strokeStyle=C.dark;
+      ctx.beginPath(); ctx.ellipse(0,0,0.19,0.23,0,0,Math.PI*2); F(C.hull);
+      ctx.beginPath(); ctx.ellipse(0,-0.08,0.11,0.08,0,0,Math.PI*2); F(C.plate);
+      G_(()=>{ circ(0,0.07,0.075); ctx.fill(); },16);
+      break;
+    case 'hook':
+      rr(ctx,-0.3,-0.14,0.38,0.4,0.06); F(C.hull);
+      rr(ctx,-0.24,-0.06,0.24,0.14,0.03); F(C.plate);
+      ctx.lineWidth=0.06; ctx.strokeStyle=C.plate; ctx.beginPath(); ctx.moveTo(0.05,-0.02); ctx.lineTo(0.24,-0.28); ctx.stroke();
+      ctx.lineWidth=0.035; ctx.strokeStyle=C.dark;
+      for (let i=0;i<3;i++){ circ(0.1+i*0.06,-0.08-i*0.08,0.025); F(C.hull); }
+      ctx.beginPath(); ctx.arc(0.26,-0.38,0.1,Math.PI*0.15,Math.PI*1.05); ctx.lineWidth=0.06; ctx.strokeStyle=C.plate; ctx.stroke();
+      ctx.lineWidth=0.035; ctx.strokeStyle=C.dark;
+      G_(()=>{ circ(-0.12,-0.16,0.04); ctx.fill(); });
+      break;
+    case 'mender':
+      rr(ctx,-0.32,-0.12,0.1,0.28,0.04); F(C.dark); rr(ctx,0.22,-0.12,0.1,0.28,0.04); F(C.dark);
+      circ(0,0.02,0.25); F(C.hull); circ(0,0.02,0.17); F(C.plate);
+      G_(()=>{ ctx.fillRect(-0.035,-0.1,0.07,0.24); ctx.fillRect(-0.12,-0.015,0.24,0.07); },12);
+      ctx.lineWidth=0.03; ctx.beginPath(); ctx.moveTo(0,-0.23); ctx.lineTo(0,-0.36); ctx.stroke(); circ(0,-0.38,0.035); F(C.plate);
+      break;
+    case 'tesla':
+      rr(ctx,-0.26,0.04,0.52,0.26,0.05); F(C.hull);
+      for (const [y,r] of [[0.02,0.17],[-0.1,0.14],[-0.21,0.11]]){ ctx.beginPath(); ctx.ellipse(0,y,r,0.06,0,0,Math.PI*2); F(C.plate); }
+      G_(()=>{ circ(0,-0.33,0.1); ctx.fill(); ctx.lineWidth=0.025;
+        const k=Math.floor(t*8); for (let i=0;i<3;i++){ const a=((k*37+i*131)%360)*Math.PI/180; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.1,-0.33+Math.sin(a)*0.1); ctx.lineTo(Math.cos(a+0.3)*0.2,-0.33+Math.sin(a+0.3)*0.2); ctx.lineTo(Math.cos(a)*0.27,-0.33+Math.sin(a)*0.27); ctx.stroke(); } },16);
+      break;
+    case 'titan':
+      rr(ctx,-0.34,-0.18,0.68,0.5,0.1); F(C.hull);
+      circ(-0.34,-0.08,0.13); F(C.plate); circ(0.34,-0.08,0.13); F(C.plate);
+      rr(ctx,-0.5,-0.42,0.2,0.2,0.05); F(C.plate); rr(ctx,0.3,-0.42,0.2,0.2,0.05); F(C.plate);
+      ctx.lineWidth=0.025; for (const x of [-0.16,-0.08,0.08,0.16]){ ctx.beginPath(); ctx.moveTo(x,0.18); ctx.lineTo(x,0.27); ctx.stroke(); }
+      ctx.lineWidth=0.035;
+      G_(()=>{ circ(0,0.0,0.11); ctx.fill(); },18);
+      circ(0,0,0.055); F(C.plate);
+      break;
+  }
+  ctx.restore();
+}
+
+function portrait(type,px,team='P'){
+  const c=document.createElement('canvas'); c.width=px*DPR; c.height=px*DPR;
+  const x=c.getContext('2d'); if (!x) return c;
+  x.scale(DPR,DPR);
+  const g=x.createRadialGradient(px/2,px*0.55,2,px/2,px/2,px*0.7); g.addColorStop(0,'rgba(94,230,255,.13)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g; x.fillRect(0,0,px,px);
+  drawMech(x,type,px/2,px*0.54,px*0.82,team,0.4);
+  return c;
+}
+
+// =====================================================================
+// TEXT HELPERS
+// =====================================================================
+const boltSvg='<svg viewBox="0 0 8 10" aria-hidden="true"><path d="M5 0 0 6h3l-1 4 6-6.5H4.6Z" fill="currentColor"/></svg>';
+const tagChip=(k,cls='')=>`<span class="chip ${cls}" style="color:${PCOL[k]};border-color:${PCOL[k]}55">${PROTOCOLS[k].name}</span>`;
+function mechSummary(type){ const d=MECHS[type]; return `<b>${d.name}</b> · ${d.role}. ${d.basic.text}. <b>${d.ability.name}</b> (${d.ability.cost}⚡): ${d.ability.text}`; }
+function dossierHTML(type){
+  const d=MECHS[type];
+  const pairs=d.pairs.map(([t,why])=>`<b>${MECHS[t].name}</b>: ${why}`).join(' · ');
+  return `<div class="dossier">
+    <div class="dp" data-port="${type}"></div>
+    <div><h3>${d.name}</h3><div class="sub">${d.role}</div>
+      <div class="tagrow">${d.tags.map(k=>tagChip(k)).join('')}</div>
+      <div class="stats"><div><b>${d.hp}</b><span>Hull</span></div><div><b>${d.move}</b><span>Move</span></div><div><b>${d.speed}</b><span>Init</span></div><div><b style="color:var(--cyan)">${d.power}</b><span>Power</span></div></div>
+    </div>
+    <div class="dl">
+      <p><span class="k">Basic attack</span>${d.basic.text}</p>
+      ${d.passive?`<p><span class="k">Passive</span>${d.passive}</p>`:''}
+      <p class="ab"><span class="k">Ability · fires when charged</span><b>${d.ability.name}</b><span class="ec">${d.ability.cost}⚡</span><br>${d.ability.text}</p>
+      <div class="sw"><p><span class="k">Strength</span>${d.strength}</p><p><span class="k" style="color:var(--rust)">Limitation</span>${d.weakness}</p></div>
+      <p class="pairs"><span class="k">Pairs well with</span>${pairs}</p>
+    </div></div>`;
+}
+function fillPortraits(root,size=84){ root.querySelectorAll('[data-port]').forEach(el=>{ el.innerHTML=''; el.appendChild(portrait(el.dataset.port,size)); }); }
+
+let toastT=0;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; t.style.opacity=1; clearTimeout(toastT); toastT=setTimeout(()=>{ t.style.opacity=0; setTimeout(()=>t.hidden=true,220); },2200); }
+
+// =====================================================================
+// HANGAR
+// =====================================================================
+function canAdd(type){ return G.squad.length<MAX_SQUAD && squadPower(G.squad)+MECHS[type].power<=MAX_POWER; }
+function toggleSquad(type){
+  const i=G.squad.indexOf(type);
+  if (i>=0){ G.squad.splice(i,1); delete G.place[type]; }
+  else if (G.squad.length>=MAX_SQUAD) return toast(`Squad is full (${MAX_SQUAD} mechs). Remove one first.`);
+  else if (!canAdd(type)) return toast(`Reactor overload: ${MECHS[type].name} draws ${MECHS[type].power} power, only ${MAX_POWER-squadPower(G.squad)} free.`);
+  else G.squad.push(type);
+  Store.save(); renderHangar(); renderProtocols();
+}
+function protoChipsHTML(levels,onlyActive){
+  return Object.keys(PROTOCOLS).filter(k=>!onlyActive||levels[k].count>0).map(k=>{
+    const L=levels[k], on=L.level>0, max=PROTOCOLS[k].tiers[PROTOCOLS[k].tiers.length-1][0];
+    const pips=Array.from({length:max},(_,i)=>`<i class="${i<L.count?'f':''}"></i>`).join('');
+    return `<span class="chip ${on?'on':''}" style="${on?`background:${PCOL[k]}`:`color:${PCOL[k]}`}" title="${PROTOCOLS[k].name} ${L.count}/${max}">${PROTOCOLS[k].name}<span class="pips">${pips}</span></span>`;
+  }).join('');
+}
+function buildRoster(){
+  const r=$('#roster'); r.innerHTML='';
+  for (const t of MECH_ORDER){
+    const d=MECHS[t];
+    const c=document.createElement('div'); c.className='card'; c.dataset.type=t; c.tabIndex=0; c.setAttribute('role','button');
+    c.innerHTML=`<div class="port"><span class="cost">${boltSvg}${d.power}</span></div><button class="info" aria-label="${d.name} details">i</button><span class="nm">${d.name}</span><span class="rl">${d.role}</span><span class="tg">${d.tags.map(k=>`<i style="background:${PCOL[k]}"></i>`).join('')}</span>`;
+    c.querySelector('.port').appendChild(portrait(t,84));
+    c.addEventListener('click',e=>{ if (e.target.closest('.info')) return openSheet(t); toggleSquad(t); });
+    c.addEventListener('keydown',e=>{ if (e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleSquad(t); } });
+    r.appendChild(c);
+  }
+}
+function renderHangar(){
+  const p=squadPower(G.squad);
+  $('#powread').innerHTML=`<em>${p}</em> / ${MAX_POWER} power · ${G.squad.length}/${MAX_SQUAD} mechs`;
+  $('#reactor').innerHTML=Array.from({length:MAX_POWER},(_,i)=>`<span class="${i<p?'on':''}"></span>`).join('');
+  const sl=$('#slots'); sl.innerHTML='';
+  for (let i=0;i<MAX_SQUAD;i++){
+    const t=G.squad[i]; const d=document.createElement('button');
+    d.className='slot '+(t?'filled':'empty');
+    if (t){ d.appendChild(portrait(t,56)); d.insertAdjacentHTML('beforeend',`<span class="sn">${MECHS[t].name}</span><span class="x">×</span>`); d.setAttribute('aria-label',`Remove ${MECHS[t].name}`); d.onclick=()=>toggleSquad(t); }
+    else d.disabled=true;
+    sl.appendChild(d);
+  }
+  $('#protos').innerHTML=protoChipsHTML(protocolLevels(G.squad));
+  document.querySelectorAll('#roster .card').forEach(c=>{ const t=c.dataset.type; const inS=G.squad.includes(t); c.classList.toggle('in',inS); c.classList.toggle('blocked',!inS&&!canAdd(t)); });
+  $('#playBtn').disabled=!G.squad.length;
+  $('#record').textContent=`W ${G.record.w} · L ${G.record.l}${G.record.d?` · D ${G.record.d}`:''}`;
+}
+function openSheet(type){
+  const s=$('#sheet'); const inS=G.squad.includes(type);
+  s.innerHTML=dossierHTML(type)+`<div class="row"><button class="btn go" id="shAdd">${inS?'Remove from squad':'Add to squad'}</button><button class="btn" id="shClose">Close</button></div>`;
+  fillPortraits(s);
+  $('#shAdd').onclick=()=>{ toggleSquad(type); closeSheet(); };
+  $('#shClose').onclick=closeSheet;
+  $('#sheetVeil').hidden=false;
+}
+function closeSheet(){ $('#sheetVeil').hidden=true; }
+$('#sheetVeil').addEventListener('click',e=>{ if (e.target.id==='sheetVeil') closeSheet(); });
+
+function renderCodex(){ $('#codexList').innerHTML=MECH_ORDER.map(dossierHTML).join(''); fillPortraits($('#codexList')); }
+function renderProtocols(){
+  const L=protocolLevels(G.squad);
+  $('#protoList').innerHTML=Object.keys(PROTOCOLS).map(k=>{ const P=PROTOCOLS[k];
+    return `<div class="proto"><h3><i style="background:${PCOL[k]}"></i>${P.name}<small>${L[k].count} in squad</small></h3>
+      <div style="font-size:13px;color:var(--bone-dim);margin-top:-4px">${P.blurb}</div>
+      ${P.tiers.map(([n,txt],i)=>`<div class="tier ${L[k].level>i?'on':''}"><b style="${L[k].level>i?`background:${PCOL[k]}`:''}">${n}</b><span>${txt}</span></div>`).join('')}
+      <div class="members">${MECH_ORDER.filter(t=>MECHS[t].tags.includes(k)).map(t=>`<span class="${G.squad.includes(t)?'in':''}">${MECHS[t].name}</span>`).join('')}</div></div>`; }).join('');
+}
+function renderManual(){
+  $('#manual').innerHTML=`<div class="pagetitle">Manual</div>
+  <h3>The loop</h3><p>Build a squad in the Hangar, deploy it on your three rows, then press <b>Engage</b>. From there the mechs fight on their own. Your decisions are who you bring and where you put them.</p>
+  <h3>Reactor</h3><p>Your squad reactor holds <b>${MAX_POWER} power</b> and up to <b>${MAX_SQUAD} mechs</b>. Each mech draws 2–4 power, so you trade numbers for heavy hitters.</p>
+  <h3>Rounds</h3><ul>
+  <li><b>Maneuver.</b> In initiative order, every mech moves and locks a target <b>tile</b>. Locked tiles show as hatched markers with the damage number.</li>
+  <li><b>Strike.</b> In the same order, every locked attack fires at its tile. Whatever stands there gets hit, friend or foe. Pushes, pulls and kills earlier in the strike phase change who that is.</li></ul>
+  <h3>Energy</h3><p>Every mech gains 1 energy per round (shown as pips under it). When the pips are full, its next action is its ability instead of its basic attack. Relay, Leech, Titan and the Arc protocol all bend this rule. From round ${Energy.overloadRound} the grid <b>overloads</b> and everyone charges twice as fast. From round ${Energy.bleedRound} reactors <b>bleed</b> hull every round, so battles always end.</p>
+  <h3>Forecast</h3><p>During deployment the board shows exactly what round 1 will do with your current placement: where each mech moves and which tiles it will hit. Move your mechs and the forecast updates. Use it to dodge the opening volley or bait enemies into bad positions.</p>
+  <h3>Pushes and collisions</h3><p>A mech pushed into another mech or off the board takes 1 damage, and so does the mech it hits.</p>
+  <h3>Protocols</h3><p>Tags shared across your squad unlock bonuses at 2 and 3 mechs. See the Protocols tab.</p>`;
+}
+
+function setTab(tab){
+  G.tab=tab;
+  for (const n of ['hangar','codex','protocols','manual']) $('#scr-'+n).hidden = n!==tab;
+  $('#scr-field').hidden=true; $('#tabs').hidden=false; $('#topbar').hidden=false;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
+  stopLoop();
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+// =====================================================================
+// FIELD (deploy + battle)
+// =====================================================================
+const cv=$('#board'); const ctx=cv.getContext('2d');
+let TS=56, BW=0, BH=0;
+function sizeBoard(){
+  const w=$('#boardwrap'); const aw=w.clientWidth-16, ah=w.clientHeight-12;
+  TS=Math.max(30,Math.floor(Math.min(aw/COLS, ah/ROWS)));
+  BW=TS*COLS; BH=TS*ROWS;
+  cv.style.width=BW+'px'; cv.style.height=BH+'px'; cv.width=BW*DPR; cv.height=BH*DPR;
+}
+new ResizeObserver(()=>{ if (!$('#scr-field').hidden) sizeBoard(); }).observe($('#boardwrap'));
+
+function newEnemy(){ const types=randomSquad(); G.enemy=autoFormation(types,'E'); }
+function openField(){
+  if (!G.squad.length) return;
+  if (!G.enemy) newEnemy();
+  for (const t of Object.keys(G.place)) if (!G.squad.includes(t)) delete G.place[t];
+  if (!Object.keys(G.place).length) for (const p of autoFormation(G.squad,'P',null)) G.place[p.type]=[p.x,p.y];
+  G.mode='deploy'; G.sel=null; G.battle=null; G.infoId=null;
+  for (const n of ['hangar','codex','protocols','manual']) $('#scr-'+n).hidden=true;
+  $('#scr-field').hidden=false; $('#tabs').hidden=true; $('#topbar').hidden=true;
+  $('#deployBar').hidden=false; $('#battleBar').hidden=true;
+  $('#ftitle').textContent='Deployment'; $('#fsub').textContent='Place your mechs on the three lit rows'; $('#fround').innerHTML='';
+  const eTypes=G.enemy.map(e=>e.type);
+  $('#estrip').innerHTML=`<span class="lbl">Enemy</span><span class="pow-read" style="font-size:11px;color:var(--bone-dim)">${squadPower(eTypes)}⚡ · ${eTypes.length} mechs</span>`+protoChipsHTML(protocolLevels(eTypes),true);
+  sizeBoard(); renderTray(); updatePreview(); setInfo(null); startLoop();
+}
+$('#playBtn').onclick=openField;
+$('#backBtn').onclick=()=>{ if (G.mode==='battle' && G.battle && !G.battle.over){ G.battle.paused=true; } $('#resultVeil').hidden=true; setTab('hangar'); renderHangar(); };
+
+function placedList(){ return G.squad.filter(t=>G.place[t]).map(t=>({type:t,x:G.place[t][0],y:G.place[t][1]})); }
+function renderTray(){
+  const tr=$('#tray'); tr.innerHTML='';
+  const un=G.squad.filter(t=>!G.place[t]);
+  if (!un.length) tr.innerHTML=`<span class="hint">All mechs placed. Drag on the board to rearrange, or tap two mechs to swap them.</span>`;
+  for (const t of un){ const b=document.createElement('button'); b.className='tchip'+(G.sel&&G.sel.type===t?' sel':''); b.appendChild(portrait(t,40)); b.insertAdjacentHTML('beforeend',MECHS[t].name);
+    b.onclick=()=>{ G.sel=(G.sel&&G.sel.type===t)?null:{type:t,from:'tray'}; setInfo(G.sel?{type:t,team:'P'}:null); renderTray(); }; tr.appendChild(b); }
+  $('#engageBtn').disabled=un.length>0;
+  $('#engageBtn').textContent=un.length?`Place ${un.length} more`:'Engage';
+}
+function setInfo(o){
+  const el=$('#infoline');
+  if (!o){ el.innerHTML = G.mode==='deploy' ? `Hatched tiles show where each mech will strike in round 1. <span class="e">Orange</span> is the enemy, <span class="p">cyan</span> is you. Tap any mech for details.` : ''; return; }
+  el.innerHTML=`<span class="${o.team==='E'?'e':'p'}">${o.team==='E'?'Enemy ':''}</span>`+mechSummary(o.type);
+}
+function updatePreview(){
+  G.preview=null;
+  const pl=placedList(); if (!pl.length) return;
+  const st=createBattle(pl,G.enemy); const ev=runRound(st,{planOnly:true});
+  const startPos={}; createBattle(pl,G.enemy).units.forEach(u=>startPos[u.id]=[u.x,u.y]);
+  const moves={}, plans={};
+  for (const e of ev){ if (e.t==='move') moves[e.id]={path:e.path}; if (e.t==='blink') moves[e.id]={path:[e.from,e.to],blink:true}; if (e.t==='plan') plans[e.id]={from:e.from,action:e.action}; }
+  G.preview={ st, moves, plans, startPos };
+}
+$('#autoBtn').onclick=()=>{ G.place={}; for (const p of autoFormation(G.squad,'P',null)) G.place[p.type]=[p.x,p.y]; G.sel=null; renderTray(); updatePreview(); };
+$('#clearBtn').onclick=()=>{ G.place={}; G.sel=null; renderTray(); updatePreview(); setInfo(null); };
+$('#fcBtn').onclick=()=>{ G.forecast=!G.forecast; $('#fcBtn').setAttribute('aria-pressed',G.forecast); };
+$('#engageBtn').onclick=startBattle;
+
+// ---- board input (deploy only) ----
+function tileFromEvent(e){ const r=cv.getBoundingClientRect(); const x=Math.floor((e.clientX-r.left)/TS), y=Math.floor((e.clientY-r.top)/TS); return inB(x,y)?[x,y]:null; }
+const isDeployTile=(x,y)=>DEPLOY_ROWS.P.includes(y);
+function typeAt(x,y){ return G.squad.find(t=>G.place[t]&&G.place[t][0]===x&&G.place[t][1]===y)||null; }
+function enemyAt(x,y){ return G.enemy.find(e=>e.x===x&&e.y===y)||null; }
+function moveTo(type,x,y){
+  const other=typeAt(x,y);
+  if (other===type) return;
+  if (other){ if (G.place[type]) G.place[other]=G.place[type].slice(); else delete G.place[other]; }
+  G.place[type]=[x,y];
+}
+cv.addEventListener('pointerdown',e=>{
+  if (G.mode!=='deploy') return; const t=tileFromEvent(e); if (!t) return;
+  const ty=typeAt(t[0],t[1]);
+  G.down={tile:t,type:ty,x:e.clientX,y:e.clientY};
+  if (ty){ G.drag={type:ty,mx:e.clientX,my:e.clientY,moved:false}; cv.setPointerCapture(e.pointerId); }
+});
+cv.addEventListener('pointermove',e=>{ if (!G.drag) return; G.drag.mx=e.clientX; G.drag.my=e.clientY; if (Math.hypot(e.clientX-G.down.x,e.clientY-G.down.y)>8) G.drag.moved=true; });
+cv.addEventListener('pointerup',e=>{
+  if (G.mode!=='deploy' || !G.down) return;
+  const t=tileFromEvent(e); const d=G.drag; G.drag=null; const down=G.down; G.down=null;
+  if (d && d.moved){ if (t && isDeployTile(t[0],t[1])){ moveTo(d.type,t[0],t[1]); G.sel=null; renderTray(); updatePreview(); } return; }
+  if (!t) return;
+  const [x,y]=t; const own=typeAt(x,y), en=enemyAt(x,y);
+  if (own){
+    if (G.sel && G.sel.type!==own){ moveTo(G.sel.type,x,y); G.sel=null; renderTray(); updatePreview(); setInfo(null); return; }
+    G.sel = G.sel && G.sel.type===own ? null : {type:own,from:'board'}; setInfo(G.sel?{type:own,team:'P'}:null); renderTray(); return;
+  }
+  if (en){ G.sel=null; renderTray(); setInfo({type:en.type,team:'E'}); return; }
+  if (G.sel && isDeployTile(x,y)){ moveTo(G.sel.type,x,y); G.sel=null; renderTray(); updatePreview(); setInfo(null); }
+});
+cv.addEventListener('pointercancel',()=>{ G.drag=null; G.down=null; });
+
+// =====================================================================
+// RENDERING
+// =====================================================================
+const tc=(x,y)=>[x*TS+TS/2, y*TS+TS/2];
+function drawBoard(now){
+  ctx.fillStyle='#0b1113'; ctx.fillRect(0,0,BW,BH);
+  for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++){
+    const px=x*TS, py=y*TS;
+    ctx.fillStyle=(x+y)%2?'#121b1e':'#10181a'; ctx.fillRect(px+1,py+1,TS-2,TS-2);
+    ctx.fillStyle='rgba(255,255,255,.025)'; ctx.fillRect(px+1,py+1,TS-2,1.5);
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(px+1,py+TS-2.5,TS-2,1.5);
+    ctx.fillStyle='rgba(158,240,192,.12)'; for (const [rx,ry] of [[4,4],[TS-5,4],[4,TS-5],[TS-5,TS-5]]) ctx.fillRect(px+rx-0.75,py+ry-0.75,1.5,1.5);
+  }
+  if (G.mode==='deploy'){
+    const pul=0.5+0.5*Math.sin(now/600);
+    ctx.fillStyle=`rgba(94,230,255,${0.05+(G.sel?0.06*pul:0)})`; ctx.fillRect(0,5*TS,BW,3*TS);
+    ctx.fillStyle='rgba(255,107,69,.045)'; ctx.fillRect(0,0,BW,3*TS);
+    ctx.strokeStyle='rgba(94,230,255,.35)'; ctx.setLineDash([4,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,5*TS+0.5); ctx.lineTo(BW,5*TS+0.5); ctx.stroke();
+    ctx.strokeStyle='rgba(255,107,69,.3)'; ctx.beginPath(); ctx.moveTo(0,3*TS-0.5); ctx.lineTo(BW,3*TS-0.5); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+function hatch(x,y,rgb,a){
+  const px=x*TS, py=y*TS;
+  ctx.save(); ctx.beginPath(); ctx.rect(px+2,py+2,TS-4,TS-4); ctx.clip();
+  ctx.fillStyle=`rgba(${rgb},${0.12*a})`; ctx.fillRect(px,py,TS,TS);
+  ctx.strokeStyle=`rgba(${rgb},${0.35*a})`; ctx.lineWidth=1.2;
+  for (let i=-TS;i<TS*2;i+=7){ ctx.beginPath(); ctx.moveTo(px+i,py); ctx.lineTo(px+i-TS,py+TS); ctx.stroke(); }
+  ctx.restore();
+  ctx.strokeStyle=`rgba(${rgb},${0.8*a})`; ctx.lineWidth=1.5; ctx.strokeRect(px+2.5,py+2.5,TS-5,TS-5);
+}
+function badge(x,y,text,rgb,a){
+  const fs=Math.max(10,TS*0.22); ctx.font=`600 ${fs}px "IBM Plex Mono",monospace`;
+  const w=ctx.measureText(text).width+8, h=fs+4; const px=x*TS+TS-w-3, py=y*TS+3;
+  ctx.globalAlpha=a; ctx.fillStyle=`rgb(${rgb})`; ctx.fillRect(px,py,w,h); ctx.fillStyle='#07100f'; ctx.textBaseline='middle'; ctx.textAlign='left'; ctx.fillText(text,px+4,py+h/2+0.5); ctx.globalAlpha=1;
+}
+function arrow(x1,y1,x2,y2,rgb,a,curve=0){
+  const mx=(x1+x2)/2, my=(y1+y2)/2-curve;
+  ctx.strokeStyle=`rgba(${rgb},${0.85*a})`; ctx.lineWidth=Math.max(1.5,TS*0.035); ctx.setLineDash([TS*0.1,TS*0.07]);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(mx,my,x2,y2); ctx.stroke(); ctx.setLineDash([]);
+  const ang=Math.atan2(y2-my,x2-mx), L=TS*0.15;
+  ctx.fillStyle=`rgba(${rgb},${a})`; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-Math.cos(ang-0.45)*L,y2-Math.sin(ang-0.45)*L); ctx.lineTo(x2-Math.cos(ang+0.45)*L,y2-Math.sin(ang+0.45)*L); ctx.closePath(); ctx.fill();
+}
+// telegraph layers: 'tiles' (under units) and 'marks' (over units)
+function drawTelegraph(team,from,a,alpha,layer){
+  const C=TEAMC[team], rgb=a.help?'158,240,192':C.soft;
+  const [fx,fy]=tc(from[0],from[1]);
+  if (layer==='tiles'){
+    if (a.help){ for (const [x,y] of a.tiles){ const [cx,cy]=tc(x,y); ctx.strokeStyle=`rgba(${rgb},${0.7*alpha})`; ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(cx,cy,TS*0.44,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); } return; }
+    for (const [x,y] of a.tiles) hatch(x,y,rgb,alpha);
+    return;
+  }
+  const [tx,ty]=a.tiles[0];
+  if (a.help) return;
+  if (a.kind==='line'){ const last=a.tiles[a.tiles.length-1]||from; const [lx,ly]=tc(last[0],last[1]); arrow(fx,fy,lx,ly,rgb,alpha,0); badge(last[0],last[1],String(a.dmg),C.soft,alpha); return; }
+  if (a.kind==='emp'){ ctx.strokeStyle=`rgba(${rgb},${0.8*alpha})`; ctx.lineWidth=2; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.arc(fx,fy,TS*2.4,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); badge(from[0],from[1],'EMP',C.soft,alpha); return; }
+  const [cx,cy]=tc(tx,ty);
+  if (a.kind==='slam'){ badge(tx,ty,String(a.dmg),C.soft,alpha); return; }
+  const curve=a.kind==='blast'||(a.kind==='hit'&&a.fx==='shell')?TS*0.9:0;
+  if (tx!==from[0]||ty!==from[1]) arrow(fx,fy,cx,cy,rgb,alpha,curve);
+  badge(tx,ty,String(a.dmg),C.soft,alpha);
+}
+function drawUnitHud(x,y,team,hp,maxHp,shield,energy,maxE,alpha=1){
+  const w=TS*0.74, h=Math.max(4,TS*0.085), px=x-w/2, py=y-TS*0.46;
+  ctx.globalAlpha=alpha;
+  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(px-1,py-1,w+2,h+2);
+  ctx.fillStyle=hp/maxHp>0.35?'#dfe7d6':'#ff9b7a'; ctx.fillRect(px,py,w*hp/maxHp,h);
+  ctx.fillStyle='rgba(0,0,0,.55)'; for (let i=1;i<maxHp;i++) ctx.fillRect(px+w*i/maxHp-0.5,py,1,h);
+  if (shield>0){ ctx.fillStyle='rgba(120,190,255,.85)'; ctx.fillRect(px,py-h*0.6-1,Math.min(w,w*shield/maxHp),h*0.6); }
+  const fs=Math.max(9,TS*0.19); ctx.font=`600 ${fs}px "IBM Plex Mono",monospace`; ctx.textAlign='right'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(0,0,0,.75)'; const tw=ctx.measureText(hp).width; ctx.fillRect(px-tw-5,py+h/2-fs/2-1,tw+4,fs+2);
+  ctx.fillStyle='#e8f0e2'; ctx.fillText(hp,px-2,py+h/2+0.5);
+  const pw=(w-(maxE-1)*2)/maxE, ey=y+TS*0.38, eh=Math.max(3,TS*0.06);
+  for (let i=0;i<maxE;i++){ const ex=px+i*(pw+2); ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(ex-0.5,ey-0.5,pw+1,eh+1);
+    ctx.fillStyle=i<energy?TEAMC[team].glow:'#26343a'; ctx.fillRect(ex,ey,pw,eh); }
+  if (energy>=maxE){ ctx.strokeStyle=TEAMC[team].glow; ctx.lineWidth=1; ctx.strokeRect(px-1.5,ey-1.5,w+3,eh+3); }
+  ctx.globalAlpha=1;
+}
+
+function renderDeploy(now){
+  const t=now/1000; drawBoard(now);
+  const P=G.preview, show=G.forecast&&P;
+  if (show) for (const id in P.plans){ const u=P.st.units.find(u=>u.id===id); drawTelegraph(u.team,P.plans[id].from,P.plans[id].action,u.team==='E'?1:0.55,'tiles'); }
+  if (G.sel){ const pul=0.5+0.5*Math.sin(now/250); ctx.strokeStyle=`rgba(94,230,255,${0.3+0.4*pul})`; ctx.lineWidth=1;
+    for (const y of DEPLOY_ROWS.P) for (let x=0;x<COLS;x++) if (!typeAt(x,y)) ctx.strokeRect(x*TS+5.5,y*TS+5.5,TS-11,TS-11); }
+  if (show) for (const id in P.moves){ const m=P.moves[id]; const u=P.st.units.find(u=>u.id===id); const rgb=TEAMC[u.team].soft;
+    ctx.strokeStyle=`rgba(${rgb},.55)`; ctx.lineWidth=2; ctx.setLineDash([3,4]); ctx.beginPath(); m.path.forEach(([x,y],i)=>{ const [cx,cy]=tc(x,y); i?ctx.lineTo(cx,cy):ctx.moveTo(cx,cy); }); ctx.stroke(); ctx.setLineDash([]);
+    const [lx,ly]=m.path[m.path.length-1]; const [cx,cy]=tc(lx,ly); drawMech(ctx,u.type,cx,cy,TS*0.8,u.team,t,0.28); }
+  const units=[...placedList().map(p=>({...p,team:'P'})),...G.enemy.map(e=>({...e,team:'E'}))];
+  for (const u of units){ if (G.drag && G.drag.moved && u.team==='P' && u.type===G.drag.type) continue;
+    const [cx,cy]=tc(u.x,u.y); const sel=G.sel&&u.team==='P'&&G.sel.type===u.type;
+    if (sel){ ctx.strokeStyle='#5ee6ff'; ctx.lineWidth=2; ctx.strokeRect(u.x*TS+3,u.y*TS+3,TS-6,TS-6); }
+    drawMech(ctx,u.type,cx,cy+(sel?-2:0),TS*0.8,u.team,t);
+    const d=MECHS[u.type]; drawUnitHud(cx,cy,u.team,d.hp,d.hp,0,0,d.ability.cost,0.85); }
+  if (show) for (const id in P.plans){ const u=P.st.units.find(u=>u.id===id); drawTelegraph(u.team,P.plans[id].from,P.plans[id].action,u.team==='E'?1:0.6,'marks'); }
+  if (G.drag && G.drag.moved){ const r=cv.getBoundingClientRect(); drawMech(ctx,G.drag.type,G.drag.mx-r.left,G.drag.my-r.top-TS*0.2,TS*0.95,'P',t,0.9); }
+}
+
+// =====================================================================
+// BATTLE PLAYBACK
+// =====================================================================
+function startBattle(){
+  if (G.squad.some(t=>!G.place[t])) return;
+  const st=createBattle(placedList(),G.enemy);
+  const disp={};
+  for (const u of st.units) disp[u.id]={ id:u.id,type:u.type,team:u.team,px:u.x,py:u.y,hp:u.hp,maxHp:u.maxHp,shield:0,energy:u.energy,maxE:u.maxE,alive:true,flash:0,dieAt:0,anim:null,bob:Math.random()*6 };
+  G.battle={ st, queue:[], disp, tele:{}, fx:[], floats:[], speed:G.battle?.speed||1, next:0, over:null, paused:false, banner:null, shake:0, alert:null, phase:'' };
+  G.mode='battle'; G.sel=null;
+  $('#deployBar').hidden=true; $('#battleBar').hidden=false; $('#pauseBtn').setAttribute('aria-pressed','false'); $('#pauseBtn').textContent='Pause';
+  $('#ftitle').textContent='Battle'; $('#fsub').textContent='Mechs act on their own. Watch the telegraphs.';
+  document.querySelectorAll('#speed button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.s===G.battle.speed));
+  setInfo(null);
+}
+document.querySelectorAll('#speed button').forEach(b=>b.onclick=()=>{ if (!G.battle) return; G.battle.speed=+b.dataset.s; document.querySelectorAll('#speed button').forEach(x=>x.setAttribute('aria-pressed',x===b)); });
+$('#pauseBtn').onclick=()=>{ const B=G.battle; if (!B) return; B.paused=!B.paused; $('#pauseBtn').setAttribute('aria-pressed',B.paused); $('#pauseBtn').textContent=B.paused?'Resume':'Pause'; if (!B.paused) B.next=performance.now(); };
+$('#skipBtn').onclick=()=>{ const B=G.battle; if (!B) return; B.speed=40; B.paused=false; document.querySelectorAll('#speed button').forEach(x=>x.setAttribute('aria-pressed','false')); };
+
+const nameOf=id=>{ const d=G.battle.disp[id]; return d?MECHS[d.type].name:''; };
+function unitDispAt(x,y){ for (const id in G.battle.disp){ const d=G.battle.disp[id]; if (d.alive && Math.round(d.px)===x && Math.round(d.py)===y) return d; } return null; }
+function addFloat(id,text,color){ const d=G.battle.disp[id]; if (!d) return; G.battle.floats.push({x:d.px,y:d.py,text,color,t0:performance.now(),life:900}); }
+function addFx(f){ f.t0=performance.now(); G.battle.fx.push(f); }
+function logLine(html){ $('#infoline').innerHTML=html; }
+
+const EVH={
+  round(ev,B){ B.tele={}; B.banner={text:`ROUND ${ev.n}`,t0:performance.now(),life:700}; $('#fround').innerHTML=`R${ev.n}`; return 520; },
+  alert(ev,B){ B.alert=ev.kind; B.banner={ text:ev.kind==='overload'?'GRID OVERLOAD · energy ×2':'REACTOR BLEED · hull drains', t0:performance.now(), life:1400, warn:true };
+    logLine(ev.kind==='overload'?'<b>Grid overload.</b> Every mech now gains 2 energy per round.':'<b>Reactor bleed.</b> Every mech loses hull at the start of each round, rising every other round.'); return 900; },
+  bleed(ev,B){ return 0; },
+  energy(ev,B){ const d=B.disp[ev.id]; if (!d) return 0; d.energy=ev.v;
+    if (ev.src==='drain'&&ev.d<0) addFloat(ev.id,`${ev.d}⚡`,'#ffd25e');
+    if (ev.src==='core') addFloat(ev.id,'+⚡','#ffd25e');
+    return ev.src==='regen'||ev.src==='relay'||ev.src==='spend'?0:90; },
+  phase(ev,B){ B.phase=ev.name; $('#fround').innerHTML=`R${B.st.round}<br>${ev.name==='maneuver'?'MANEUVER':'STRIKE'}`; if (ev.name==='strike'){ B.banner={text:'STRIKE',t0:performance.now(),life:650,small:true}; return 750; } return 120; },
+  move(ev,B){ const d=B.disp[ev.id]; const steps=ev.path.length-1; const dur=110*steps+60; d.anim={path:ev.path,t0:performance.now(),dur:dur/B.speed}; return dur; },
+  blink(ev,B){ const d=B.disp[ev.id]; addFx({kind:'blink',at:ev.from,team:d.team,life:320}); d.px=ev.to[0]; d.py=ev.to[1]; addFx({kind:'blink',at:ev.to,team:d.team,life:320}); return 260; },
+  plan(ev,B){ B.tele[ev.id]={from:ev.from,action:ev.action,t0:performance.now()}; return 130; },
+  act(ev,B){ const d=B.disp[ev.id]; delete B.tele[ev.id]; const life={shell:440,beam:320,hook:380,zap:360,slash:260,bolt:260,shield:420,link:420,ring:480,heal:420,quake:420}[ev.fx]||300;
+    addFx({kind:ev.fx,from:ev.from,to:ev.to,chain:ev.chain,links:ev.links,radius:ev.radius,big:ev.big,team:d.team,life:life/B.speed>120?life:life});
+    if (ev.fx==='quake') B.shake=Math.max(B.shake,6);
+    const tgt=unitDispAt(ev.to[0],ev.to[1]);
+    const abil=ev.ability?`<b>${MECHS[d.type].ability.name}</b>`:'attacks';
+    const tname=tgt&&tgt!==d?` → <span class="${tgt.team==='E'?'e':'p'}">${MECHS[tgt.type].name}</span>`:'';
+    logLine(`<span class="${d.team==='E'?'e':'p'}">${d.team==='E'?'Enemy ':''}${MECHS[d.type].name}</span> ${abil}${tname}`);
+    return ev.fx==='shell'?420:ev.fx==='beam'||ev.fx==='hook'?300:260; },
+  dmg(ev,B){ const d=B.disp[ev.id]; d.hp=ev.hp; d.shield=ev.shield; d.flash=1;
+    if (ev.amt>0) addFloat(ev.id,`-${ev.amt}`,ev.bleed?'#c78bff':ev.friendly?'#ffffff':'#ff8a6a');
+    if (ev.absorbed>0) addFloat(ev.id,`⛨${ev.absorbed}`,'#8fc7ff');
+    if (!ev.bleed) B.shake=Math.max(B.shake,ev.amt>=4?5:2);
+    return ev.bleed?60:140; },
+  heal(ev,B){ const d=B.disp[ev.id]; d.hp=ev.hp; addFloat(ev.id,`+${ev.amt}`,'#9ef0c0'); return 160; },
+  shield(ev,B){ const d=B.disp[ev.id]; const prev=d.shield; d.shield=ev.v; if (ev.v>prev) addFloat(ev.id,`⛨${ev.v}`,'#8fc7ff'); return ev.v>prev?120:0; },
+  push(ev,B){ const d=B.disp[ev.id]; d.anim={path:[ev.from,ev.to],t0:performance.now(),dur:200/B.speed}; return 210; },
+  bump(ev,B){ const d=B.disp[ev.id]; d.bump={dir:ev.dir,t0:performance.now(),dur:220/B.speed}; B.shake=Math.max(B.shake,4); addFloat(ev.id,'CLANG','#ffd25e'); return 200; },
+  death(ev,B){ const d=B.disp[ev.id]; d.alive=false; d.dieAt=performance.now(); delete B.tele[ev.id];
+    addFx({kind:'boom',from:[d.px,d.py],to:[d.px,d.py],team:d.team,life:700,parts:Array.from({length:18},()=>({a:Math.random()*Math.PI*2,v:0.6+Math.random()*1.6,s:2+Math.random()*3}))}); B.shake=Math.max(B.shake,7); return 380; },
+  timeout(){ return 0; },
+  over(ev,B){ B.over=ev.winner; setTimeout(()=>showResult(ev.winner),900/Math.min(B.speed,4)); return 0; },
+};
+
+function stepBattle(now){
+  const B=G.battle; if (!B || B.over || B.paused) return;
+  let guard=0;
+  while (now>=B.next && !B.over && guard++<400){
+    if (!B.queue.length){ if (B.st.over) break; B.queue=runRound(B.st); }
+    const ev=B.queue.shift(); const h=EVH[ev.t]; const dur=h?h(ev,B):0;
+    B.next=Math.max(B.next,now-50)+dur/B.speed;
+  }
+}
+
+function lerpPath(path,p){
+  const n=path.length-1; if (n<=0) return path[0]; const f=Math.min(1,Math.max(0,p))*n; const i=Math.min(n-1,Math.floor(f)); const k=f-i;
+  const ease=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  return [path[i][0]+(path[i+1][0]-path[i][0])*ease, path[i][1]+(path[i+1][1]-path[i][1])*ease];
+}
+function renderBattle(now){
+  const B=G.battle, t=now/1000;
+  ctx.save();
+  if (B.shake>0.2 && !reduceMotion){ ctx.translate((Math.random()-.5)*B.shake,(Math.random()-.5)*B.shake); }
+  B.shake*=0.86;
+  drawBoard(now);
+  if (B.alert==='bleed'){ ctx.fillStyle=`rgba(199,139,255,${0.05+0.03*Math.sin(now/300)})`; ctx.fillRect(0,0,BW,BH); }
+  else if (B.alert==='overload'){ ctx.fillStyle=`rgba(255,210,94,${0.03+0.02*Math.sin(now/300)})`; ctx.fillRect(0,0,BW,BH); }
+  for (const id in B.tele){ const T=B.tele[id]; const a=Math.min(1,(now-T.t0)/180); drawTelegraph(B.disp[id].team,T.from,T.action,a,'tiles'); }
+  // units
+  for (const id in B.disp){
+    const d=B.disp[id];
+    if (d.anim){ const p=Math.max(0,now-d.anim.t0)/d.anim.dur; const pos=lerpPath(d.anim.path,p); d.px=pos[0]; d.py=pos[1]; if (p>=1){ const l=d.anim.path[d.anim.path.length-1]; d.px=l[0]; d.py=l[1]; d.anim=null; } }
+    let alpha=1; if (!d.alive){ const k=(now-d.dieAt)/500; if (k>=1) continue; alpha=1-k; }
+    let [cx,cy]=[d.px*TS+TS/2, d.py*TS+TS/2];
+    if (d.bump){ const k=(now-d.bump.t0)/d.bump.dur; if (k>=1) d.bump=null; else { const o=Math.sin(k*Math.PI)*TS*0.18; cx+=d.bump.dir[0]*o; cy+=d.bump.dir[1]*o; } }
+    const bob=reduceMotion?0:Math.sin(t*2+d.bob)*TS*0.012;
+    if (d.shield>0){ ctx.strokeStyle=`rgba(143,199,255,${0.45+0.2*Math.sin(t*4)})`; ctx.lineWidth=1.5; ctx.beginPath(); for (let i=0;i<6;i++){ const a=i*Math.PI/3+Math.PI/6; const r=TS*0.43; i?ctx.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r):ctx.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);} ctx.closePath(); ctx.stroke(); }
+    if (d.energy>=d.maxE && d.alive){ const g=ctx.createRadialGradient(cx,cy,TS*0.1,cx,cy,TS*0.5); g.addColorStop(0,`rgba(${TEAMC[d.team].soft},.25)`); g.addColorStop(1,`rgba(${TEAMC[d.team].soft},0)`); ctx.fillStyle=g; ctx.fillRect(cx-TS/2,cy-TS/2,TS,TS); }
+    drawMech(ctx,d.type,cx,cy+bob,TS*0.8*(d.alive?1:1+(1-alpha)*0.2),d.team,t,alpha);
+    if (d.flash>0){ ctx.fillStyle=`rgba(255,255,255,${d.flash*0.55})`; ctx.beginPath(); ctx.arc(cx,cy,TS*0.32,0,Math.PI*2); ctx.fill(); d.flash=Math.max(0,d.flash-0.08); }
+    if (d.alive) drawUnitHud(cx,cy,d.team,d.hp,d.maxHp,d.shield,d.energy,d.maxE);
+  }
+  for (const id in B.tele){ const T=B.tele[id]; const a=Math.min(1,(now-T.t0)/180); drawTelegraph(B.disp[id].team,T.from,T.action,a,'marks'); }
+  drawFx(now);
+  // floats
+  B.floats=B.floats.filter(f=>now-f.t0<f.life*Math.max(0.35,1/Math.sqrt(B.speed)));
+  for (const f of B.floats){ const k=Math.max(0,now-f.t0)/(f.life*Math.max(0.35,1/Math.sqrt(B.speed))); const fs=Math.max(12,TS*0.3);
+    ctx.font=`700 ${fs}px "Tektur",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=1-k*k;
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.85)'; const x=f.x*TS+TS/2, y=f.y*TS+TS*0.2-k*TS*0.5; ctx.strokeText(f.text,x,y); ctx.fillStyle=f.color; ctx.fillText(f.text,x,y); ctx.globalAlpha=1; }
+  ctx.restore();
+  // banner
+  if (B.banner){ const k=Math.max(0,now-B.banner.t0)/(B.banner.life/Math.min(B.speed,3)); if (k>=1) B.banner=null; else {
+    const a=k<0.15?k/0.15:k>0.75?(1-k)/0.25:1; const fs=B.banner.small?TS*0.42:TS*(B.banner.warn?0.36:0.58);
+    ctx.globalAlpha=a; ctx.fillStyle='rgba(5,9,10,.78)'; ctx.fillRect(0,BH/2-fs,BW,fs*2);
+    ctx.fillStyle=B.banner.warn?(B.alert==='bleed'?'#c78bff':'#ffd25e'):B.banner.small?'#ff9b7a':'#e6dec7';
+    ctx.font=`900 ${fs}px "Tektur",sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(B.banner.text,BW/2,BH/2+1); ctx.globalAlpha=1; } }
+}
+function drawFx(now){
+  const B=G.battle;
+  B.fx=B.fx.filter(f=>now-f.t0<f.life/Math.min(B.speed,3));
+  for (const f of B.fx){
+    const k=Math.max(0,(now-f.t0)/(f.life/Math.min(B.speed,3))); const C=TEAMC[f.team]; const [fx,fy]=f.from?tc(f.from[0],f.from[1]):[0,0]; const [tx,ty]=f.to?tc(f.to[0],f.to[1]):[0,0];
+    ctx.save(); ctx.shadowColor=C.glow; ctx.shadowBlur=12;
+    switch(f.kind){
+      case 'slash': { ctx.strokeStyle=`rgba(255,255,255,${1-k})`; ctx.lineWidth=3; for (let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(tx,ty,TS*(0.25+i*0.08),-2.3+k*1.8+i*.2,-1.0+k*1.8+i*.2); ctx.stroke(); } break; }
+      case 'bolt': { const p=Math.min(1,k*1.6); const x=fx+(tx-fx)*p, y=fy+(ty-fy)*p; ctx.fillStyle=C.glow; ctx.beginPath(); ctx.arc(x,y,TS*0.08,0,Math.PI*2); ctx.fill(); if (p>=1){ ctx.globalAlpha=1-k; ctx.beginPath(); ctx.arc(tx,ty,TS*0.3*k,0,Math.PI*2); ctx.stroke(); } break; }
+      case 'shell': { const p=Math.min(1,k*1.4); const x=fx+(tx-fx)*p, y=fy+(ty-fy)*p-Math.sin(p*Math.PI)*TS*1.4; ctx.fillStyle=C.glow; ctx.beginPath(); ctx.arc(x,y,TS*0.09,0,Math.PI*2); ctx.fill();
+        if (p>=1){ const e=(k-1/1.4)/(1-1/1.4); ctx.globalAlpha=1-e; ctx.fillStyle=`rgba(${C.soft},.5)`; ctx.beginPath(); ctx.arc(tx,ty,TS*(f.big?1.1:0.5)*(0.4+e),0,Math.PI*2); ctx.fill(); } break; }
+      case 'beam': case 'hook': { ctx.globalAlpha=1-k; ctx.strokeStyle=f.kind==='hook'?'#e6dec7':C.glow; ctx.lineWidth=f.kind==='hook'?2.5:TS*0.12*(1-k)+1; if (f.kind==='hook') ctx.setLineDash([5,3]); ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(tx,ty); ctx.stroke(); ctx.setLineDash([]); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(tx,ty); ctx.stroke(); break; }
+      case 'zap': { ctx.globalAlpha=1-k; ctx.strokeStyle=C.glow; ctx.lineWidth=2.5; const pts=[f.from,...(f.chain&&f.chain.length?f.chain:[f.to])];
+        ctx.beginPath(); for (let i=0;i<pts.length-1;i++){ const [ax,ay]=tc(pts[i][0],pts[i][1]), [bx,by]=tc(pts[i+1][0],pts[i+1][1]); if (i===0) ctx.moveTo(ax,ay); for (let s=1;s<=5;s++){ const q=s/5; ctx.lineTo(ax+(bx-ax)*q+(s<5?(Math.random()-.5)*TS*0.25:0), ay+(by-ay)*q+(s<5?(Math.random()-.5)*TS*0.25:0)); } } ctx.stroke(); break; }
+      case 'shield': { ctx.globalAlpha=1-k; ctx.strokeStyle='#8fc7ff'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(fx,fy,TS*(0.3+k*1.0),0,Math.PI*2); ctx.stroke(); break; }
+      case 'link': { ctx.globalAlpha=1-k; ctx.strokeStyle='#ffd25e'; ctx.lineWidth=3; for (const l of (f.links||[])){ const [lx,ly]=tc(l[0],l[1]); ctx.beginPath(); ctx.moveTo(fx,fy); ctx.lineTo(lx,ly); ctx.stroke(); ctx.beginPath(); ctx.arc(lx,ly,TS*0.35*k+4,0,Math.PI*2); ctx.stroke(); } break; }
+      case 'ring': { ctx.globalAlpha=1-k; ctx.strokeStyle=C.glow; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(fx,fy,TS*(f.radius+0.4)*k,0,Math.PI*2); ctx.stroke(); break; }
+      case 'heal': { ctx.globalAlpha=1-k; ctx.fillStyle='#9ef0c0'; ctx.shadowColor='#9ef0c0'; const s=TS*0.12; ctx.fillRect(tx-s/2,ty-s*1.5-k*TS*0.4,s,s*3); ctx.fillRect(tx-s*1.5,ty-s/2-k*TS*0.4,s*3,s); break; }
+      case 'quake': { ctx.globalAlpha=1-k; ctx.strokeStyle=C.glow; ctx.lineWidth=5*(1-k)+1; ctx.strokeRect(fx-TS*(0.5+k),fy-TS*(0.5+k),TS*(1+2*k),TS*(1+2*k)); break; }
+      case 'blink': { const [bx,by]=tc(f.at[0],f.at[1]); ctx.globalAlpha=1-k; ctx.strokeStyle=C.glow; ctx.lineWidth=2; for (let i=0;i<6;i++){ const a=i*Math.PI/3; ctx.beginPath(); ctx.moveTo(bx+Math.cos(a)*TS*0.1,by+Math.sin(a)*TS*0.1); ctx.lineTo(bx+Math.cos(a)*TS*(0.2+k*0.4),by+Math.sin(a)*TS*(0.2+k*0.4)); ctx.stroke(); } break; }
+      case 'boom': { ctx.globalAlpha=1-k; ctx.fillStyle=C.glow; for (const p of f.parts){ const r=p.v*k*TS*0.7; ctx.fillRect(fx+Math.cos(p.a)*r-p.s/2,fy+Math.sin(p.a)*r-p.s/2,p.s,p.s); } ctx.fillStyle=`rgba(255,240,220,${1-k})`; ctx.beginPath(); ctx.arc(fx,fy,TS*0.4*(1-k),0,Math.PI*2); ctx.fill(); break; }
+    }
+    ctx.restore();
+  }
+}
+
+function showResult(w){
+  const B=G.battle; if (!B || $('#scr-field').hidden) return;
+  if (w==='P') G.record.w++; else if (w==='E') G.record.l++; else G.record.d++;
+  Store.save();
+  const pAlive=B.st.units.filter(u=>u.team==='P'&&u.alive).length, eDead=B.st.units.filter(u=>u.team==='E'&&!u.alive).length;
+  const title=w==='P'?'VICTORY':w==='E'?'DEFEAT':'STALEMATE', col=w==='P'?'var(--cyan)':w==='E'?'var(--rust)':'var(--bone)';
+  const line=w==='P'?'The enemy grid has gone dark.':w==='E'?'Your squad is offline. Rework the formation and try again.':'Both reactors failed at once.';
+  $('#rbox').innerHTML=`<h2 style="color:${col}">${title}</h2><p>${line}</p>
+    <div class="rs"><div><b>${B.st.round}</b><span>Rounds</span></div><div><b>${pAlive}/${G.squad.length}</b><span>Survived</span></div><div><b>${eDead}/${G.enemy.length}</b><span>Destroyed</span></div></div>
+    <button class="btn go" id="rRe">Rematch · same enemy</button><button class="btn" id="rNew">New opponent</button><button class="btn" id="rHome">Back to hangar</button>`;
+  $('#resultVeil').hidden=false;
+  $('#rRe').onclick=()=>{ $('#resultVeil').hidden=true; openField(); };
+  $('#rNew').onclick=()=>{ $('#resultVeil').hidden=true; newEnemy(); openField(); };
+  $('#rHome').onclick=()=>{ $('#resultVeil').hidden=true; setTab('hangar'); renderHangar(); };
+}
+
+// =====================================================================
+// LOOP
+// =====================================================================
+let raf=0;
+function frame(now){
+  raf=requestAnimationFrame(frame);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if (G.mode==='deploy') renderDeploy(now);
+  else if (G.battle){ stepBattle(now); renderBattle(now); }
+}
+function startLoop(){ if (!raf) raf=requestAnimationFrame(frame); }
+function stopLoop(){ if (raf) cancelAnimationFrame(raf); raf=0; }
+
+// ---------- boot ----------
+function boot(){ buildRoster(); renderHangar(); renderCodex(); renderProtocols(); renderManual(); setTab('hangar'); }
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ if (G.tab==='hangar' && $('#scr-field').hidden){ buildRoster(); renderHangar(); } });
+boot();
+
+</script>
